@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-06-19
-**Authors:** [Your Name]
+**Authors:** Carlos Mercado <carlos.mercado@example.com>
 
 ## Context
 The platform's evolution requires consistent, high-quality artifact generation (plugins, ADRs, tests, documentation) while maintaining architectural integrity. Manual processes lead to inconsistencies, omissions, and architectural drift. A structured agentic approach can systematize development activities without introducing runtime complexity.

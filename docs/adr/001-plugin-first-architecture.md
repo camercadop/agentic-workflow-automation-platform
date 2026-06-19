@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06-18
-**Authors:** Agent Team
+**Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 
 ## Context
 The platform must support complex, non-linear workflows while keeping the Core Engine minimal and decoupled from business logic. Without a defined extension model, business logic could leak into the core, violating the Core Minimalism principle and complicating governance. To achieve Plugin Isolation and Non-Linear Compliance, all functional logic must be encapsulated in independent plugins that interact only via a shared Execution Context. This decision establishes the architectural boundary between platform contracts and plugin implementations.

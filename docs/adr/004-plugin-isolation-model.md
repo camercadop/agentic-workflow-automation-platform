@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-07-02
-**Authors:** Agent Team
+**Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 001 (Plugin First Architecture), 002 (Plugin Discovery), 003 (Plugin Lifecycle)
 
 ## Context

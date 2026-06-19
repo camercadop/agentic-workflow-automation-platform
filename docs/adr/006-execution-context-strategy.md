@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-07-01
-**Authors:** [Your Name]
+**Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 002, 003, 004, 005
 
 ## Context

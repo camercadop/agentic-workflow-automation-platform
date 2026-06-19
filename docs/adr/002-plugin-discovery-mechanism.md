@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06-18
-**Authors:** Agent Team
+**Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 001
 
 ## Context
