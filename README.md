@@ -47,7 +47,7 @@ All four steps are implemented as separate plugins, enabling independent develop
 - **Contract‑First**: Each plugin implements a concrete subclass of a core abstract base (`BaseTrigger`, `BaseCondition`, `BaseTransformer`, `BaseAction`).
 - **Metadata‑Driven**: Plugins ship a `plugin.yaml` describing type, name, version, entry point, and dependencies.
 - **Dynamic Discovery**: The Core Engine loads plugins via Python entry‑points defined in `pyproject.toml`, enabling zero‑code registration.
-- **Isolation & Validation**: Plugins are validated against Pydantic schemas at load time; failures are reported by the GovernanceAgent.
+- **Isolation & Validation**: Plugins are validated against Pydantic schemas at load time; failures are reported during validation
 
 ## MVP Scope
 - **Core Components**: Plugin Contracts, Plugin Registry, Execution Context, Workflow Definition, Workflow Executor
@@ -77,4 +77,4 @@ flowchart TD
 ```
 
 ## Getting Started
-Refer to `/docs/architecture.md` for the full technical blueprint and the governance model.
+Refer to `/docs/architecture` for the full technical blueprint and the governance model.
