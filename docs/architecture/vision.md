@@ -9,7 +9,7 @@ Define the immutable architectural boundaries of the **agentic workflow automati
 ## Core Principles
 - **Plugin Isolation**: Plugins operate within strict boundaries to prevent leakage into Core; the technical implementation of isolation will be defined in a future ADR
 - **Core Minimalism**: Core Engine contains no business logic; only infrastructure contracts and lifecycle management
-- **Governance Boundaries**: Clear separation between architectural decisions (architect-led) and implementation (agent-executed)
+- **Governance Boundaries**: Clear separation between architectural decisions (architect-led) and plugin implementations
 - **Execution Context**: Controlled workflow state container passed through plugin pipeline
 - **Non-Linear Compliance**: Workflow execution model supports branching/merging without Core modification
 
