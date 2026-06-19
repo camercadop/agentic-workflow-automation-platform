@@ -6,21 +6,20 @@
 **Related ADRs:** 001, 002, 003, 004, 005, 006, 007
 
 ## Context
-The platform's extensibility model, driven by a Plugin‑First Architecture (ADR-001), introduces various moving parts: plugin manifests, lifecycle states, capability declarations, contract implementations, execution contexts, and workflow graphs. According to ADR-004, the Core Engine must remain isolated from security-sensitive logic through the Isolation Service. A centralized technical governance layer is required to enforce architectural compliance across all extensible components through automated validation gates, preventing incompatible, insecure, or malformed artifacts from entering the system.
+- Since all plugins are built-time artifacts produced by development agents, validation must occur during the CI/CD pipeline before bundling into the application. No runtime artifact admission process is required. The Governance Framework provides pre-deployment validation gates that enforce architectural compliance across all ADRs before artifacts become part of the deployed platform.
 
 ## Terminology
-- **Governance Framework**: Collection of all validation gates that enforce ADR-001 through ADR-008.
-- **Validation Service**: Platform component responsible for executing validation gates and producing admission decisions. This component is part of the Governance Framework but operates as a dedicated boundaryless execution unit. The Governance Framework defines the validation rules, while the Validation Service is responsible for automatically verifying artifacts against those rules.
+- **Governance Framework**: Collection of validation gates that enforce the runtime architecture defined by ADR-001 through ADR-007.
+- **Validation Engine**: Build‑time component that executes validation gates and produces validation reports. It is the implementation artifact of the Governance Framework and runs as part of the CI/CD pipeline.
 - **Artifact**: Any component (Plugin, Manifest, Workflow Graph, Execution Context) subject to validation.
-- **Admission**: Successful passage of an artifact through required validation gates.
-- **Core Engine**: The platform's core component responsible for discovery, lifecycle management, and orchestration (ADR-001).
-- **Validation Service**: Platform component responsible for executing validation gates until admission decisions.
+- **Deployment**: The process where validated artifacts are packaged into the application deployment.
+- **Pre-Deployment**: Phase of CI/CD pipeline where validation gates are enforced.
 
 ## Decision
-Adopt an automated **Governance & Validation Framework** composed of non‑bypassable validation gates. The platform (not the Core Engine) remains the sole authority on what constitutes a valid component through this framework, which enforces that plugins, manifests, contracts, permissions, execution contexts, and workflow graphs strictly adhere to the architectural specifications defined in ADR-001 through ADR-008 before they may be registered, activated, or executed. No human approvals are part of this architectural model.
+Adopt a Build-Time Validation Framework composed of non‑bypassable validation gates. During the CI/CD pipeline, plugins, manifests, contracts, permissions, execution contexts, and workflow graphs must strictly adhere to the architectural specifications defined in ADR-001 through ADR-007 before they may be bundled into the application. No human approvals or runtime admission gates are part of this architectural model.
 
 ## Relationship with Existing ADRs
-- ADR-002 governs discovery requirements validated by the Discovery Validation Gate.
+- ADR-002 governs registration requirements validated by the Manifest Validation Gate.
 - ADR-003 governs lifecycle requirements validated by the Contract Validation Gate.
 - ADR-004 governs permission and isolation requirements validated by the Security Validation Gate.
 - ADR-005 defines the Plugin Contract Model validated by the Contract Validation Gate.
@@ -28,7 +27,7 @@ Adopt an automated **Governance & Validation Framework** composed of non‑bypas
 - ADR-007 defines workflow requirements validated by the Workflow Validation Gate.
 
 ### Validation Gates
-1. **Discovery Validation Gate**
+1. **Manifest Validation Gate**
    - Manifest schema validation
    - Metadata completeness (ID, version, type)
    - Capability declaration validation
@@ -40,27 +39,22 @@ Adopt an automated **Governance & Validation Framework** composed of non‑bypas
    - Runtime API signature compliance
 
 3. **Security Validation Gate**
-   - Declaration validation: Manifest capability-permisson alignment
+   - Declaration validation: Manifest capability-permission alignment
    - Initial permission set validation: Ensuring well-formedness and non-conflicting rights
-   - Archive validation: Ensuring compliance with the Plugin Isolation Model (ADR-004) enforcement requirements
+   - Plugin package validation: Ensuring compliance with the Plugin Isolation Model (ADR-004) enforcement requirements
 
 4. **Execution Context Validation Gate**
    - Context requirement satisfaction
-   - Resource constraints verification
+   - Declared resource requirements validation (CPU/memory/thread limits declared in manifest)
    - Compatibility with execution model (ADR-006)
 
-  5. **Workflow Validation Gate**
-     - DAG validation
-     - Type compatibility
-     - Contract compatibility across connected nodes
-     - Plugin existence and readiness checks
-     - Permission satisfiability across the workflow
-
-6. **Execution Admission Gate**
-    - Revalidation of execution prerequisites
-    - Context availability verification
-    - Permission availability verification
-    - Plugin activation status verification
+5. **Workflow Validation Gate**
+   - Workflow schema validation
+   - DAG validation
+   - Type compatibility
+   - Contract compatibility across connected nodes
+   - Plugin existence and readiness checks
+   - Permission satisfiability across the workflow
 
 ## Consequences
 **Positive**
@@ -70,19 +64,19 @@ Adopt an automated **Governance & Validation Framework** composed of non‑bypas
 - Maintains Core Engine minimalism (ADR-001).
 
 **Negative**
-- Adds computational overhead during registration and workflow initialization.
-- Increases framework complexity to implement and maintain gate logic.
-- A single gate failure blocks the entire artifact.
+- Adds computational overhead during CI/CD validation and registry generation
+- Increases framework complexity to implement and maintain gate logic
+- A single gate failure blocks the entire deployment
 
 ## Rationale
-To prevent architectural drift in a decentralized plugin model, we need a centralized enforcement mechanism. This framework ensures the "Plugin-First" principle (ADR-001) does not compromise "Core Minimalism" (ADR-001) or security isolation (ADR-004). By centralizing validation in the Governance Framework rather than the Core Engine, we complete the isolation chain initiated in ADR-004.
+To prevent architectural drift in a decentralized plugin model, we need a centralized enforcement mechanism. This framework ensures the "Plugin-First" principle (ADR-001) does not compromise "Core Minimalism" (ADR-001) or security isolation (ADR-004). By centralizing validation in the Governance Framework rather than the Core Engine, architectural compliance is enforced without violating Core Minimalism.
 
 ## Validation Criteria
-- Plugins with invalid manifests are rejected during Discovery.
-- Plugins failing contract checks cannot be activated.
-- Workflows with invalid DAGs or type mismatches are rejected before execution.
-- All validation is performed by the Governance Framework, not the Core Engine.
-- Validation failures are logged and prevent subsequent lifecycle stages.
+- Plugins with invalid manifests are rejected during build-time registration.
+- Plugins failing contract checks cannot be included in the generated registry.
+- Workflows with invalid DAGs or type mismatches are rejected during build-time validation.
+- All validation is performed by the Governance Framework during CI/CD pipeline.
+- Validation failures prevent artifact inclusion in the generated registry.
 - No component can bypass a validation gate via configuration or direct injection.
 
 ## Alternatives Considered
@@ -91,11 +85,11 @@ To prevent architectural drift in a decentralized plugin model, we need a centra
 - **Loose Governance** – Rejected as it undermines stability.
 
 ## Mandatory Rules
-- All plugins must pass the Discovery Validation Gate before registration.
-- All plugins must pass the Contract Validation Gate before activation.
-- All workflow graphs must pass the Workflow Validation Gate before execution.
-- Contract compatibility must be verified before any plugin activation.
-- Validation failures must strictly prevent the associated lifecycle stage.
+- All plugins must pass the Manifest Validation Gate before inclusion in the generated registry.
+- All plugins must pass the Contract Validation Gate before inclusion in the generated registry.
+- All workflow graphs must pass the Workflow Validation Gate before deployment.
+- Contract compatibility must be verified before inclusion in the generated registry.
+- Validation failures must strictly prevent artifact packaging.
 - Validation gates cannot be bypassed under any circumstances.
 
 ## Allowed Changes

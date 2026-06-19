@@ -6,7 +6,7 @@
 **Related ADRs:** 001, 002
 
 ## Context
-The platform lacks a standardized mechanism to manage plugin initialization, activation, and cleanup, leading to unpredictable behavior during runtime. This is critical because the Plugin First Architecture (ADR 001) requires plugins to be independent yet managed components, and without control over their execution points, plugins cannot reliably initialize resources or clean up state. The system must ensure deterministic plugin behavior while supporting the registration mechanism (ADR 002) and core minimalism principles. Constraints include maintaining backward compatibility with existing plugins and ensuring the Core Engine remains agnostic to plugin implementations. This decision directly affects the architectural goals of Plugin Isolation and Core Minimalism by establishing clear boundaries for plugin lifecycle management.
+The platform lacks a standardized mechanism to manage plugin initialization, activation, and cleanup, leading to unpredictable behavior during runtime. This is critical because the Plugin First Architecture (ADR 001) requires plugins to be independent yet managed components, and without control over their execution points, plugins cannot reliably initialize resources or clean up state. The system must ensure deterministic plugin behavior while supporting the build-time registration model (ADR 002) and core minimalism principles. Constraints include maintaining backward compatibility with existing plugins and ensuring the Core Engine remains agnostic to plugin implementations. This decision directly affects the architectural goals of Plugin Isolation and Core Minimalism by establishing clear boundaries for plugin lifecycle management.
 
 ## Decision
 Adopt a standardized lifecycle state machine managed by the Core Engine with states: Registered, Activated, Active, Deactivated, Cleaned Up. Plugins may optionally implement hooks for state transitions.
@@ -24,7 +24,7 @@ Adopt a standardized lifecycle state machine managed by the Core Engine with sta
 - More boilerplate code required for plugin implementations
 
 **Risks**
-- Increased complexity may discourage third-party plugin development
+- Increased complexity may discourage third‑party plugin development
 - Performance overhead during activation/deactivation phases
 
 ## Validation Criteria
@@ -36,7 +36,7 @@ Adopt a standardized lifecycle state machine managed by the Core Engine with sta
 
 ## Alternatives Considered
 - **Event-Driven Lifecycle**: Letting plugins define their own lifecycle events. Rejected because it violates Core Engine agnosticism and creates inconsistent behavior.
-- **Passive Plugin Management**: No lifecycle hooks, relying on plugins for self-management. Rejected because it undermines Plugin Isolation and makes error handling unpredictable.
+- **Passive Plugin Management**: No lifecycle hooks, relying on plugins for self‑management. Rejected because it undermines Plugin Isolation and makes error handling unpredictable.
 - **Monolithic Lifecycle**: Single initialize/shutdown pair. Rejected because it lacks granularity for runtime state management.
 
 ## Rationale
@@ -64,7 +64,6 @@ A standardized lifecycle ensures deterministic plugin behavior while allowing pl
 | **Lifecycle State** | One of the sequential phases a plugin passes through: Registered → Activated → Active → Deactivated → Cleaned Up. |
 | **Lifecycle Hook** | Optional function a plugin may implement to respond to state transitions (e.g., `on_activated`, `on_enter_activated`, `on_exit_deactivated`). |
 | **Hook Contract** | The set of hooks a plugin implements, determined by the plugin’s own code and optional metadata. |
-
 
 ---
 

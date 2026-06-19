@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-07-02
 **Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
-**Related ADRs:** 001 (Plugin First Architecture), 002 (Plugin Discovery), 003 (Plugin Lifecycle)
+**Related ADRs:** 001, 002, 003
 
 ## Context
 Plugins in our system must not interfere with each other or the Core Engine. Without explicit isolation, plugins could:
@@ -24,8 +24,20 @@ Affected Architectural Goals:
 ## Terminology
 | Term | Definition |
 |------|------------|
-| **Capability** | A functional feature a plugin *provides* (e.g., "transform-data", "send-email"). Declared in the manifest during discovery (ADR 002). |
+| **Capability** | A functional feature a plugin *provides* (e.g., "transform-data", "send-email"). Declared in the manifest during build-time registration (ADR 002). |
 | **Permission** | A right to access a specific **resource** (e.g., file `/tmp/data`, env `API_KEY`, network `api.example.com`). Granted at runtime by the Isolation Service. |
+
+### Runtime API Ownership
+The Core Engine exposes the Runtime API as the **sole boundary** for plugin interaction with platform services. This API is hierarchically organized as:
+- **Core Engine**
+  - **Runtime API**
+    - **Context API**: Access to execution contexts and metadata per ADR-006
+    - **Logging API**: Structured logging services
+    - **Metrics API**: Telemetry and monitoring data access
+    - **Secrets API**: Secure secret/parameter retrieval
+    - **Event API**: Event bus publish/subscribe interactions
+
+Plugins **never** access Core Engine internals. All interactions must flow through these explicitly exposed interfaces.
 
 ## Decision
 Adopt a sandboxed architecture where plugins:
@@ -57,7 +69,7 @@ Adopt a sandboxed architecture where plugins:
 - Test 4: Plugins interact only with the Core Engine’s public API contract, comprising the Lifecycle Interface (discovery and lifecycle transitions) and the Runtime API Interface (execution context, metadata, logging, metrics, configuration, event bus, and resource access via the Isolation Service).
 
 ## Clarification
-Plugins do **not** directly call the Isolation Service. They declare capabilities via the discovery mechanism and request permissions through the **Runtime API Interface**; the Core Engine forwards these requests to the Isolation Service, which evaluates them against policy and enforces isolation. The Core Engine’s role remains limited to routing and coordination, preserving its lightweight nature.
+Plugins do **not** directly call the Isolation Service. They declare capabilities via the build‑time registration process and request permissions through the **Runtime API Interface**; the Core Engine forwards these requests to the Isolation Service, which evaluates them against policy and enforces isolation. The Core Engine’s role remains limited to routing and coordination, preserving its lightweight nature.
 
 ## Alternatives Considered
 - Peer-to-peer plugin communication: Rejected because it violates isolation and introduces shared state risks.

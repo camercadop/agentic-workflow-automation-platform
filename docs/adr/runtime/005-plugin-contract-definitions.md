@@ -15,7 +15,7 @@ A Plugin Contract is a versioned architectural specification that defines the bo
 
 ## Plugin Contract Model Decomposition
 The Plugin Contract Model is composed of four constituent contracts, each addressing a distinct interaction concern:
-- **Discovery Contract** (ADR-002): Defines how plugins self-describe capabilities and metadata for automatic registration.
+- **Discovery Contract** (ADR-002): Defines how plugins self-describe capabilities and metadata for automatic registration during the build process. This contract is used for registry generation and does not imply runtime scanning or dynamic plugin discovery.
 - **Lifecycle Contract** (ADR-003): Specifies the state machine and hooks governing plugin initialization, activation, and cleanup.
 - **Runtime API Contract** (ADR-004): Describes shared interaction protocols such as Event Bus, Metadata, Context, and Logging.
 - **Security Contract** (ADR-004): Establishes capability declarations, permissions, isolation levels, and sandbox boundaries for plugin security and resource access.

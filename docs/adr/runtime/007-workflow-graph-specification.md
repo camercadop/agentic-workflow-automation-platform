@@ -22,7 +22,7 @@ Constraints include maintaining compatibility with the Plugin Contract Model (AD
 | **Workflow Graph** | A directed acyclic graph (DAG) defining the structure and dependency relationships between plugin instances within a workflow. |
 | **Node** | A single execution point in the workflow, representing a plugin instance with configured inputs/outputs. |
 | **Edge** | A directed connection between nodes defining data or event flow. |
-| **Workflow Context** | A workflow-scoped data container managed by the workflow runtime; it carries state through the graph by mapping node outputs to subsequent node inputs, ensuring no direct state sharing between plugin instances. |
+| **Workflow Context** | A workflow-scoped data container managed by the workflow runtime; it carries state through the graph by mapping node outputs to subsequent node inputs, ensuring no direct state sharing between plugin instances. **Workflow data propagation is mediated exclusively by the Workflow Runtime. Plugins never exchange data directly.** |
 
 ## Decision
 Workflow graphs are **directed acyclic graphs** where:

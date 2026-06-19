@@ -23,6 +23,8 @@ The platform must manage how plugins execute tasks within a standardized, secure
 | **Context Service** | The platform component responsible for creating, provisioning, and destroying execution contexts, operating under the Isolation Service’s policies (ADR-004). |
 | **Plugin Instance** | A single occurrence of a plugin executing within a workflow, uniquely identified and isolated for its execution duration. |
 
+**Execution Context is a logical isolation boundary. The underlying implementation may evolve (e.g., process, thread, container, sandbox) without affecting the contract model.**
+
 ## Decision
 Adopt a **per-plugin instance execution context strategy** where:
 - Each plugin instance (e.g., individual Trigger, Condition, Transformer, Action in a workflow) receives its own isolated execution context.
