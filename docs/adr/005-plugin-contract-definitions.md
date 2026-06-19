@@ -1,0 +1,82 @@
+# ADR 005: Plugin Contract Definitions
+
+**Status:** Accepted
+**Date:** 2026-06-19
+**Authors:** [Author Names]
+**Related ADRs:** [001, 002, 003, 004]
+
+## Context
+The platform lacks standardized plugin contracts, leading to inconsistent interfaces and integration challenges. Without a common specification, plugins are difficult to maintain and version, hindering scalability.
+
+We must balance this standardization with backward compatibility and flexibility. The goal is to improve modularity and maintainability by defining clear, predictable boundaries between the platform and its plugins.
+
+## What is a Plugin Contract?
+A Plugin Contract is a versioned architectural specification that defines the boundaries, guarantees, and interaction models between plugins and the platform. It unifies the Discovery, Lifecycle, Runtime API, and Security contracts (from ADR-002, ADR-003, and ADR-004) into a single model that enables the platform to assess compatibility.
+
+## Plugin Contract Model Decomposition
+The Plugin Contract Model is composed of four constituent contracts, each addressing a distinct interaction concern:
+- **Discovery Contract** (ADR-002): Defines how plugins self-describe capabilities and metadata for automatic registration.
+- **Lifecycle Contract** (ADR-003): Specifies the state machine and hooks governing plugin initialization, activation, and cleanup.
+- **Runtime API Contract** (ADR-004): Describes shared interaction protocols such as Event Bus, Metadata, Context, and Logging.
+- **Security Contract** (ADR-004): Establishes capability declarations, permissions, isolation levels, and sandbox boundaries for plugin security and resource access.
+
+These contracts together form the unified Plugin Contract Model.
+
+## Decision
+We will standardize the Plugin Contract as an architectural boundary specification that unifies the interaction models and boundaries defined in ADR-002, ADR-003, and ADR-004. Rather than defining concrete method signatures, we establish:
+
+- **Interaction boundaries** as first-class architectural concepts, expressed through capability declarations and sandbox definitions from ADR-004 (Security Contract) and lifecycle hooks from ADR-003 (Lifecycle Contract)
+- **Configuration and metadata schemas** as part of the boundary contract
+- **Runtime API usage patterns** (Event Bus, Metadata, Context, Logging) as shared interaction protocols (Runtime API Contract)
+- **Versioning and compatibility rules** governing boundary evolution
+
+This approach emphasizes defining clear architectural contracts for how plugins relate to the platform and each other, rather than focusing on implementation details.
+
+## Consequences
+**Positive**
+- Unifies Discovery (ADR-002), Lifecycle (ADR-003), Runtime API (ADR-004), and Security (ADR-004) contracts into a single versioned contract
+- Clear compatibility boundaries for plugin updates and platform evolution
+- Reduced integration testing effort through standardized contracts
+- Plugin compatibility is determined against the Plugin Contract Model version rather than implementation details
+
+**Negative**
+- Initial development overhead to define and document the unified contract
+- Need to refactor existing plugins to align with the consolidated contract specification
+
+**Risks**
+- Over-specification might limit innovative plugin patterns requiring non-standard interfaces
+- Versioning complexity if contract evolution isn't carefully managed
+
+## Rationale
+Standardizing contracts will improve the overall architecture by making plugins more predictable and easier to manage.
+The trade-off is the initial effort required to define and implement these contracts, but it pays off in long-term maintainability.
+
+## Validation Criteria
+- All new plugins must comply with the Plugin Contract Model.
+- Existing plugins are migrated to use the contracts within the next two release cycles.
+- Contract compliance is verified through automated tests in the CI pipeline.
+
+## Alternatives Considered
+- **Fragmented Model** – Keep plugin-specific contracts without standardization – Rejected due to integration challenges and increased technical debt.
+- **Dynamic Discovery Model** – Use a dynamic, configuration-based interface without static contracts – Rejected for lack of type safety and unpredictable runtime behavior.
+- **Deferred Definition Model** – Defer contract definition until a later phase – Rejected because early definition reduces architectural rework and provides a clear roadmap for developers.
+
+## Mandatory Rules
+- All plugins must comply with the Plugin Contract Model defined in this ADR. This includes:
+  - Complying with the Lifecycle Contract (ADR-003), including optional lifecycle hooks where implemented
+  - Adhering to Discovery standards (ADR-002)
+  - Adhering to Security standards (ADR-004)
+  - Following runtime API usage patterns (Event Bus, Metadata, Context, Logging)
+  - Observing versioning and compatibility rules
+- The Plugin Contract Model version is independent of individual plugin release versions. It represents only platform contract compatibility and is governed by semantic versioning.
+- Breaking changes to the Plugin Contract Model require a major version bump
+
+## Allowed Changes
+- Adding new optional capabilities or interaction patterns to the Plugin Contract Model (with minor version bump)
+- Refining schema definitions or metadata structures without altering existing contract semantics
+- Updating versioning or compatibility rules in a backward‑compatible manner
+
+## Forbidden Changes
+- Removing or fundamentally altering any defined interaction boundary, capability, or versioning rule without a deprecation period
+- Changing the major version semantics in a way that breaks existing plugin compatibility
+- Introducing breaking modifications to the Plugin Contract Model without appropriate migration guidance
