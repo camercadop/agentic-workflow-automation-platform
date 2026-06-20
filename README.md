@@ -1,8 +1,13 @@
 # agentic-workflow-automation-platform
 
+> **Status:** This project is under active development. Features and documentation are evolving rapidly.
+
+> **Note:** This project is currently focused on architecture definition, governance, and implementation planning.
+> The architecture documentation (ADRs and C4 diagrams) is the authoritative source of truth while implementation is under development.
+
 ## Project Goals
 ### Product Goal
-- Build a plugin‑based workflow automation platform (Trigger → Condition → Transformer → Action) that can be extended by third‑party developers.
+- Build a plugin‑based workflow automation platform (DAG-based, non-linear pipelines) that can be extended by third‑party developers.
 
 ### Engineering Goal
 - Showcase a fully‑autonomous, agent‑driven software development lifecycle: requirements → design → implementation → testing → review → documentation → merge.
@@ -21,7 +26,15 @@ This platform exists to demonstrate two core innovations:
 Together, these innovations showcase a practical blueprint for scalable, secure, and agent‑driven software systems that can be adapted for future projects.
 
 ## Architecture
+
 This platform implements an **agentic software development lifecycle** (ASDL) and **plugin-based workflow automation**, designed to demonstrate autonomy, composability, and governance.
+
+### Core Architectural Principles
+1. **Plugin Isolation (ADR-004)**: Plugins execute in sandboxed environments with enforced contract boundaries.
+2. **Core Minimalism (ADR-001)**: Core Engine handles only registry loading, lifecycle, and workflow orchestration.
+3. **Agentic Development (ADR-008)**: Agent-driven design, code generation, and validation remain separate from runtime.
+4. **Build-Time Governance (ADR-009)**: Compliance enforced via static validation gates during CI/CD.
+5. **Composable Workflows (ADR-007)**: Workflows are DAGs enabling branching, parallelism, and merge points.
 
 ### Core Components
 These components embody the architectural principles defined in the ADRs and form the foundation of the platform's runtime behavior.
@@ -65,7 +78,7 @@ Two layers of governance ensure both development quality and runtime compliance.
 
 **Runtime Governance (ADR-009)**
 - **Plugin Isolation**: Each plugin operates independently with clear contracts (ADR-004).
-- **Continuous Validation**: Automated enforcement via five build-time validation gates prevents invalid artifacts from entering the registry.
+- **Build-Time Validation Enforcement**: Automated enforcement via five build-time validation gates prevents invalid artifacts from entering the registry.
 
 ### Execution Context & Governance Boundaries
 Clear architectural boundaries separate plugin execution from core governance.
@@ -107,7 +120,11 @@ flowchart TD
     F --> G[Merge]
 ```
 
+## Architecture Documentation
+- **ADR Index**: [`/docs/adr/`](docs/adr/) – all Architectural Decision Records
+- **C4 Level 0 – System Context**: [`level-0-system-context.md`](docs/architecture/c4/level-0-system-context.md)
+- **C4 Level 1 – Container Diagram**: [`level-1-container.md`](docs/architecture/c4/level-1-container.md)
+
 ## License
 This project is released under the [Apache License, Version 2.0](LICENSE).
 See the [LICENSE](LICENSE) file for full license text.
-
