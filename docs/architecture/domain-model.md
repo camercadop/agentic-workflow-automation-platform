@@ -1,5 +1,7 @@
 # Domain Model
 
+This document outlines the domain model and lifecycle management of the agentic-workflow-automation-platform. It details core concepts, component relationships, and state transitions for workflows, plugins, and execution contexts. Intended for developers and architects implementing or maintaining the platform's architecture.
+
 ## Core Concepts
 
 ### Workflow
@@ -42,6 +44,15 @@ Workflow:
 - Activated: Workflow is ready to accept executions
 - Archived: Marked as static (no longer modified)
 
+```mermaid
+stateDiagram-v2
+    [*] --> Created
+    Created --> Defined: author
+    Defined --> Activated: validate
+    Activated --> Archived: archive
+    Archived --> [*]
+```
+
 Plugin:
 - Available: Plugin is made known to the system
 - Verified: Plugin meets architectural and behavioral contracts
@@ -50,11 +61,31 @@ Plugin:
 - Active: Plugin performs its designated function
 - Released: Resources are reclaimed after use
 
+```mermaid
+stateDiagram-v2
+    [*] --> Available
+    Available --> Verified: register
+    Verified --> Integrated: validate
+    Integrated --> Allocated: allocate
+    Allocated --> Active: start
+    Active --> Released: release
+    Released --> [*]
+```
+
 Execution Context:
 - Initialized: Created for new execution
 - Passed: Sent to first plugin
 - Modified: Each plugin returns new version
 - Finalized: Persisted as execution result
+
+```mermaid
+stateDiagram-v2
+    [*] --> Initialized
+    Initialized --> Passed: create
+    Passed --> Modified: mutate
+    Modified --> Finalized: finalize
+    Finalized --> [*]
+```
 
 Workflow Execution:
 - Pending: Waiting for execution start

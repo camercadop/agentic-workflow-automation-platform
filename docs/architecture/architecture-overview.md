@@ -1,6 +1,10 @@
 # System Architecture Overview
 
+A concise overview of the system's architecture, including core components, execution flow, and governance models for an extensible, agent-driven workflow platform.
+
 ## Core Engine Components
+
+The Core Engine Components are the foundational building blocks of the system architecture.
 ```
 Core Engine
 ├── Plugin Contracts (BaseTrigger, BaseCondition, BaseTransformer, BaseAction)
@@ -11,6 +15,9 @@ Core Engine
 ```
 
 ## Execution Flow
+
+This section outlines the execution flow from discovery to governance checkpoints.
+
 ```
 1. Plugin Discovery (via entry-points)
 2. Plugin Registration (Registry)
@@ -24,21 +31,29 @@ Core Engine
 ```
 
 ## Governance Boundaries
+
+This section defines the separation of responsibilities between architects and agents, outlining validation gates between workflow stages.
 - **Architect-Led**: Contracts, Execution Context definitions
 - **Agent-Executed**: Plugin implementations, workflow orchestration
 - **Validation Gates**: Defined per ADR (not yet specified)
 
 ## Plugin Isolation Model
+
+This section explains how plugins are encapsulated and communicate only through the Execution Context.
 - Plugins inherit from Base classes
 - Plugins communicate only via Execution Context
 - Core Engine enforces boundaries (mechanism TBD in ADR)
 
 ## Non-Linear Flow Support
+
+This section describes support for branching and merging workflows without requiring core modifications.
 - Workflow Definition allows branching/merging
 - Executor handles multiple paths without Core modification
 - Context carries state between branches
 
 ## Extensibility Points
+
+This section highlights the extension points available for adding new functionality without modifying core code.
 - New plugin types can be added via ADR
 - Custom workflow graphs supported
 - No Core modification required for business logic

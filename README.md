@@ -11,9 +11,36 @@
 
 This project is a demonstration of an **Agentic Software Development Process**. While the target product is a plugin-based workflow automation platform, the primary goal is to showcase how specialized AI agents collaborate to design, implement, test, review, and document software autonomously.
 
+## Why This Project Exists
+This platform exists to demonstrate two core innovations:
+
+1. **Autonomous Engineering**: It proves that specialized AI agents can orchestrate the entire software development lifecycle—from requirements to merge—without human-written boilerplate. This eliminates repetitive tasks and accelerates development while maintaining architectural rigor.
+
+2. **Plugin‑First Extensibility**: By standardizing plugin contracts and build-time registration, the system provides a foundation for third‑party developers to create reusable workflow components while adhering to strict governance and isolation rules.
+
+Together, these innovations showcase a practical blueprint for scalable, secure, and agent‑driven software systems that can be adapted for future projects.
+
+## Architecture
+This platform implements an **agentic software development lifecycle** (ASDL) and **plugin-based workflow automation**, designed to demonstrate autonomy, composability, and governance.
+
+### Core Components
+These components embody the architectural principles defined in the ADRs and form the foundation of the platform's runtime behavior.
+
+- **Workflow Runtime (ADR-007)**: Executes the workflow DAG, respecting defined dependencies, non-linear paths, and pruning invalid branches. Validated during build time.
+- **Plugin Contract Model (ADR-005)**: Standardizes interfaces via abstract base classes (`BaseTrigger`, `BaseCondition`, `BaseTransformer`, `BaseAction`). Enforced by Pydantic schemas at registration.
+- **Execution Context (ADR-006)**: Per-plugin instance isolation boundary that encapsulates memory, threads, and sandbox scopes. Ensures complete isolation even within the same workflow.
+- **Build-Time Validation Framework (ADR-009)**: Enforces architectural compliance through gates (Manifest, Contract, Security, Context, Workflow) before deployment.
+
+### System Structure
+| Layer | Responsibility | ADR Reference |
+|-------|-----------------|---------------|
+| **Development** | Agent-driven code, tests, and docs generation | ADR-008 |
+| **Runtime** | Core Engine (plugin registry, execution) and plugin isolation | ADR-001, ADR-002, ADR-004 |
+| **Governance** | Build-time validation gates and lead architect oversight | ADR-009 |
+| **Workspace** | Structured by purpose: plugins, ADRs, agent logic | See `/docs/architecture/c4/` |
+
 ## The Domain
-The platform implements a **non‑linear workflow pipeline**:
-`Trigger` ⇒ `Conditions` ⇛ `Transformers` ⇒ `Actions`
+The platform implements a **non‑linear workflow pipeline** defined as a **directed acyclic graph (DAG)** of plugin instances. Nodes represent plugin executions (Trigger, Condition, Transformer, Action) and typed edges define data flow between them, enabling branching, parallelism, and merging (see ADR-007).
 
 ### Domain Example
 Consider a simple **Email Alert** workflow:
@@ -25,29 +52,33 @@ Consider a simple **Email Alert** workflow:
 All four steps are implemented as separate plugins, enabling independent development and reuse across workflows.
 
 ### Core Engine Responsibilities
-- **Plugin Discovery & Loading**: Locate and load plugins via Python entry‑points
-- **Workflow Validation**: Validate plugin contracts and dependencies
-- **Execution Orchestration**: Coordinate plugin execution respecting non‑linear execution paths
-- **State Management**: Maintain workflow state and context across plugins
-- **Error Handling & Recovery**: Implement retry, fallback, and compensation strategies
-- **Monitoring & Telemetry**: Collect execution metrics and performance data
+- **Plugin Registry Loading**: Plugins are statically registered via `pyproject.toml` at build time and loaded from the generated registry at startup. No runtime discovery is performed (see ADR‑002).
+- **Lifecycle Management**: Manages plugin lifecycle states (Registered, Activated, Active, Deactivated, Cleaned Up) as defined in ADR‑003.
+- **Workflow Orchestration**: Executes the workflow DAG, respecting defined dependencies, non‑linear paths, and per‑instance execution contexts (ADR‑006).
 
 ### Governance Principles
-- **Agentic Decision Support**: Autonomous agents handle design, implementation, and validation under the guidance and final approval of the Lead Architect
-- **Agent-Written Core**: Agents implement Core Engine infrastructure (loading, orchestration, state) but **must not** embed business logic
-- **Plugin Isolation**: Each plugin operates independently with clear contracts
-- **Continuous Validation**: Automated enforcement at every stage
+Two layers of governance ensure both development quality and runtime compliance.
+
+**Agentic Development Governance (ADR-008)**
+- **Agentic Decision Support**: Autonomous agents handle design, implementation, and validation under the guidance and final approval of the Lead Architect.
+- **Agent-Written Core**: Agents implement Core Engine infrastructure (loading, orchestration, state) but **must not** embed business logic.
+
+**Runtime Governance (ADR-009)**
+- **Plugin Isolation**: Each plugin operates independently with clear contracts (ADR-004).
+- **Continuous Validation**: Automated enforcement via five build-time validation gates prevents invalid artifacts from entering the registry.
 
 ### Execution Context & Governance Boundaries
-- **Execution Context**: Immutable data container passed through the workflow pipeline containing input payload, state, metadata, and plugin results
+Clear architectural boundaries separate plugin execution from core governance.
+
+- **Execution Context (ADR-006)**: Per-plugin instance isolation boundary that encapsulates memory, threads, and sandbox scopes for execution. Each plugin instance receives its own execution context, ensuring complete isolation even within the same workflow.
 - **Plugin Boundaries**: Plugins execute in isolation with explicit contract validation; no direct access to Core internals
-- **Governance Gates**: Automated validation checkpoints at plugin registration, workflow definition, and execution time
+- **Governance Gates (ADR-009)**: Automated validation checkpoints at plugin registration, workflow definition (pre-deployment)
 
 ## Plugin Architecture
-- **Contract‑First**: Each plugin implements a concrete subclass of a core abstract base (`BaseTrigger`, `BaseCondition`, `BaseTransformer`, `BaseAction`).
-- **Metadata‑Driven**: Plugins ship a `plugin.yaml` describing type, name, version, entry point, and dependencies.
-- **Dynamic Discovery**: The Core Engine loads plugins via Python entry‑points defined in `pyproject.toml`, enabling zero‑code registration.
-- **Isolation & Validation**: Plugins are validated against Pydantic schemas at load time; failures are reported during validation
+- **Contract-First**: Each plugin implements a concrete subclass of a core abstract base (`BaseTrigger`, `BaseCondition`, `BaseTransformer`, `BaseAction`) conforming to the Plugin Contract Model (ADR-005).
+- **Metadata-Driven**: Plugins ship a `plugin.yaml` describing type, name, version, entry point, and dependencies for build-time registration (ADR-002).
+- **Build-Time Registration**: Plugins are validated during CI/CD, generating a static registry. No runtime discovery is performed.
+- **Isolation & Validation**: Plugins execute in isolated contexts with contract validation; failures are reported during validation (ADR-004).
 
 ## MVP Scope
 - **Core Components**: Plugin Contracts, Plugin Registry, Execution Context, Workflow Definition, Workflow Executor
@@ -76,5 +107,7 @@ flowchart TD
     F --> G[Merge]
 ```
 
-## Getting Started
-Refer to `/docs/architecture` for the full technical blueprint and the governance model.
+## License
+This project is released under the [Apache License, Version 2.0](LICENSE).
+See the [LICENSE](LICENSE) file for full license text.
+
