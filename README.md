@@ -119,11 +119,12 @@ flowchart TD
     E --> F[ReviewerAgent]
     F --> G[Merge]
 ```
-
 ## Architecture Documentation
+
 - **ADR Index**: [`/docs/adr/`](docs/adr/) – all Architectural Decision Records
 - **C4 Level 0 – System Context**: [`level-0-system-context.md`](docs/architecture/c4/level-0-system-context.md)
 - **C4 Level 1 – Container Diagram**: [`level-1-container.md`](docs/architecture/c4/level-1-container.md)
+- **Glossary**: [`GLOSSARY.md`](GLOSSARY.md) – key terminology and definitions
 
 ## License
 This project is released under the [Apache License, Version 2.0](LICENSE).
