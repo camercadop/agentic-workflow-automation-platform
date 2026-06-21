@@ -41,7 +41,7 @@ These components embody the architectural principles defined in the ADRs and for
 
 - **Workflow Runtime (ADR-007)**: Executes the workflow DAG, respecting defined dependencies, non-linear paths, and pruning invalid branches. Validated during build time.
 - **Plugin Contract Model (ADR-005)**: Standardizes interfaces via abstract base classes (`BaseTrigger`, `BaseCondition`, `BaseTransformer`, `BaseAction`). Enforced by Pydantic schemas at registration.
-- **Execution Context (ADR-006)**: Per-plugin instance isolation boundary that encapsulates memory, threads, and sandbox scopes. Ensures complete isolation even within the same workflow.
+- **Execution Context (ADR-006)**: Per-execution context instance isolation boundary that encapsulates memory, threads, and sandbox scopes. Ensures complete isolation even within the same workflow.
 - **Build-Time Validation Framework (ADR-009)**: Enforces architectural compliance through gates (Manifest, Contract, Security, Context, Workflow) before deployment.
 
 ### System Structure
@@ -83,7 +83,7 @@ Two layers of governance ensure both development quality and runtime compliance.
 ### Execution Context & Governance Boundaries
 Clear architectural boundaries separate plugin execution from core governance.
 
-- **Execution Context (ADR-006)**: Per-plugin instance isolation boundary that encapsulates memory, threads, and sandbox scopes for execution. Each plugin instance receives its own execution context, ensuring complete isolation even within the same workflow.
+- **Execution Context (ADR-006)**: Per-execution context instance isolation boundary that encapsulates memory, threads, and sandbox scopes for execution. Each execution context instance receives its own execution context, ensuring complete isolation even within the same workflow.
 - **Plugin Boundaries**: Plugins execute in isolation with explicit contract validation; no direct access to Core internals
 - **Governance Gates (ADR-009)**: Automated validation checkpoints at plugin registration, workflow definition (pre-deployment)
 

@@ -1,6 +1,6 @@
 # 009-Governance & Validation Framework
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-19
 **Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 001, 002, 003, 004, 005, 006, 007

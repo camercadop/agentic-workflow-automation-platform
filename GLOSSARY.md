@@ -34,19 +34,19 @@ Minimal runtime component that provides lifecycle management and workflow orches
 Plugins must implement contracts defined by abstract base classes before any business logic is added.
 
 ## DAG (Directed Acyclic Graph)
-The underlying structure of workflows; nodes represent plugin executions and edges define data flow, allowing branching, parallelism, and merging.
+The underlying structure of workflows; Workflow Nodes represent configured Plugin Types and their execution materializes Plugin Instances, while edges define data flow, allowing branching, parallelism, and merging.
 
 ## Documentation Agent
 Agent that writes and maintains user guides, API references, and other documentation.
 
 ## Execution Context
-Ephemeral isolated environment created for a single plugin‑instance execution and destroyed immediately afterwards. Execution contexts are never shared between plugin instances, ensuring strict isolation per ADR‑006.
+Runtime Object provisioned by Context Manager before a Plugin Instance executes; it provides isolated memory, threading, and sandbox boundaries for that execution and is destroyed immediately afterwards. Execution contexts are never shared between Plugin Instances, ensuring strict isolation per ADR‑006.
 
 ## Execution Context Strategy (ADR‑006)
-Per‑plugin instance isolation that encapsulates memory, threads, and sandbox scopes, ensuring complete isolation even within the same workflow.
+Per‑Plugin Instance isolation that encapsulates memory, threads, and sandbox scopes, ensuring complete isolation even within the same workflow.
 
 ## Isolation Service
-Runtime component that provisions and enforces sandboxed execution environments for each plugin instance, guaranteeing that plugins cannot interfere with each other's state or with the core engine.
+Single authority for authorization decisions. All permission evaluations are performed here, and no other component is allowed to decide on access rights.
 
 ## Governance Gates
 Validation steps that prevent non‑compliant artifacts from entering the registry.
@@ -60,11 +60,17 @@ Optional function a plugin may implement to react to lifecycle state transitions
 ## Metadata‑Driven
 Plugins declare capabilities, version, and entry points via a `plugin.yaml` manifest processed at build time.
 
+## Node Executor
+Runtime Component within Workflow Runtime that requests an Execution Context from Context Manager, materializes a Plugin Instance from the referenced Plugin Type, and executes it within that Execution Context.
+
 ## Non‑Linear Pipelines
 Workflows that are not strictly sequential; they may branch, run in parallel, and converge.
 
 ## Plugin
 Independent component implementing one of the extensibility points (Trigger, Condition, Transformer, Action) and conforming to defined contracts.
+
+## Plugin Instance
+Runtime Object materialized by Node Executor from a Workflow Node's referenced Plugin Type. It executes within its own Execution Context and may interact with platform services via Runtime API.
 
 ## Plugin Contract Definitions (ADR‑005)
 Contract‑first approach where plugins inherit from abstract base classes (`BaseTrigger`, `BaseCondition`, `BaseTransformer`, `BaseAction`) and are validated against Pydantic schemas.
@@ -87,8 +93,7 @@ State machine for plugins: **Registered → Activated → Active → Deactivated
 ## Plugin Registration
 (Covered by Build‑Time Plugin Registration ADR‑002.)
 
-## Plugin Instance
-Concrete instantiation of a plugin type within a workflow, bound to a specific execution context and configuration parameters.
+
 
 ## Plugin Package
 Distributable artifact (e.g., wheel, zip) that contains a plugin's compiled code, its `plugin.yaml` manifest, and any required resources for registration and execution.
@@ -97,7 +102,10 @@ Distributable artifact (e.g., wheel, zip) that contains a plugin's compiled code
 Generated artifact containing all validated plugin definitions; loaded by the Core Engine at startup.
 
 ## Runtime API
-Programmatic interface exposed by the Core Engine (e.g., CLI, HTTP, gRPC) that allows external callers to submit workflow definitions, query execution status, and control workflow execution. It operates on the static registry and does not perform runtime plugin discovery.
+Programmatic interface exposed by the platform runtime layer for **plugins** to interact with platform services (Context, Logging, Metrics, Secrets, Event Bus). Operates on the static registry and does not perform runtime plugin discovery.
+
+## Platform API
+Programmatic interface exposed by the platform for **external callers** to submit workflow definitions, query execution status, and control workflow execution. It is the public-facing endpoint of the system.
 
 ## Skill
 Reusable capability or tool that an agent can invoke (e.g., linters, formatters, validators).
@@ -111,12 +119,12 @@ Agent that produces unit, integration, and contract tests for generated artifact
 ## Workflow Runtime
 Component that executes the workflow DAG, respecting dependencies and isolation rules. It is composed of:
 
-* **Node Executor** – runs individual plugin instances within their own execution contexts.
+* **Node Executor** – requests an Execution Context from Context Manager, materializes a Plugin Instance from the referenced Plugin Type, and executes it within that Execution Context.
 * **Routing Engine** – determines the order of node execution based on DAG dependencies and handles branching/merging.
-* **Context Manager** – creates and disposes the per‑node execution contexts and enforces isolation guarantees.
+* **Context Manager** – Single authorization gateway for plugins. It forwards all resource requests to the Isolation Service and ensures that only approved permissions are granted.
 
 ## Workflow Context
 Shared, per‑workflow state (variables, metadata, intermediate results) that can be read by workflow nodes but is isolated from other concurrent workflow executions.
 
 ## Workflow Node
-Individual step in the workflow DAG representing the execution of a Plugin Instance. Each node includes metadata such as node ID, dependencies, and the execution context used for that step.
+Static definition in a Workflow Graph that references a Plugin Type and its configuration. A Workflow Node does not create runtime objects; Node Executor materializes a Plugin Instance when the node is scheduled.

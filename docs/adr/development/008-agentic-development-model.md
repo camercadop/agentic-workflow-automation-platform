@@ -1,6 +1,6 @@
 # ADR 008 – Agent-Assisted Development Model
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-19
 **Authors:** Carlos Mercado <carlos.mercado@example.com>
 

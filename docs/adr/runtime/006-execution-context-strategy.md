@@ -1,6 +1,6 @@
 # ADR 006: Execution Context Strategy
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-01
 **Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 002, 003, 004, 005
@@ -19,27 +19,30 @@ The platform must manage how plugins execute tasks within a standardized, secure
 ## Terminology
 | Term | Definition |
 |------|------------|
-| **Execution Context** | The isolated runtime environment in which a plugin invocation executes, providing memory, threading, and sandboxed boundaries for a single plugin instance’s active execution. |
-| **Context Service** | The platform component responsible for creating, provisioning, and destroying execution contexts, operating under the Isolation Service’s policies (ADR-004). |
-| **Plugin Instance** | A single occurrence of a plugin executing within a workflow, uniquely identified and isolated for its execution duration. |
+| **Execution Context** | Runtime Object provisioned by Context Manager before a Plugin Instance executes, providing memory, threading, and sandboxed boundaries for that execution. |
+| **Context Manager** | Single entry point for authorization requests; delegates all authorization decisions to Isolation Service. |
+| **Node Executor** | Workflow Runtime component that requests an Execution Context from Context Manager, materializes a Plugin Instance from the referenced Plugin Type, and executes it within that Execution Context. |
+| **Plugin Instance** | Runtime Object materialized by Node Executor from a Workflow Node's referenced Plugin Type; it executes within its own Execution Context. |
 
 **Execution Context is a logical isolation boundary. The underlying implementation may evolve (e.g., process, thread, container, sandbox) without affecting the contract model.**
 
 ## Decision
 Adopt a **per-plugin instance execution context strategy** where:
-- Each plugin instance (e.g., individual Trigger, Condition, Transformer, Action in a workflow) receives its own isolated execution context.
-- Contexts are provisioned immediately before plugin instance execution and destroyed immediately after execution completes.
+- Node Executor requests an Execution Context from Context Manager before materializing each Plugin Instance.
+- Context Manager validates the request via Isolation Service and provisions the Execution Context.
+- Node Executor materializes a Plugin Instance from the referenced Plugin Type and executes it within that Execution Context.
+- Contexts are destroyed immediately after Plugin Instance execution completes.
 - A **platform metadata service** (not a shared layer) exposes controlled, read-only access to approved platform metadata through the Runtime API.
 - Plugins can request additional context resources (threads, IPC channels) via the Runtime API, which the Core Engine forwards to the Isolation Service for evaluation and allocation.
 
-This ensures that even within a single workflow, plugins like Trigger, Condition, and Action run in entirely separate contexts, preventing interference.
+This ensures that even within a single workflow, Plugin Instances run in entirely separate contexts, preventing interference.
 
 ## Consequences
 **Positive**
 - Reduced interference: Plugins cannot corrupt each other’s state or consume excessive shared resources.
 - Security-enforced boundaries: Resource access is validated against the Security Contract.
 - Predictable performance: Context isolation simplifies scaling and debugging.
-- Simplified recovery: Execution contexts can be cleaned up deterministically by the Context Service.
+- Simplified recovery: Execution contexts can be cleaned up deterministically by the Context Manager.
 
 **Negative**
 - Increased overhead: Per-context setup/teardown may impact startup time or memory usage.
@@ -52,15 +55,15 @@ This ensures that even within a single workflow, plugins like Trigger, Condition
 - Dependency on Isolation Service: Failure in isolation logic could lead to unisolated execution.
 
 ## Rationale
-The per-plugin instance context strategy balances isolation and interoperability, aligning with ADR 005’s architectural boundaries. It enforces security (via ADR 004’s sandboxing) while respecting plugin-specific needs. By tying context management to execution phases (Active), we ensure deterministic cleanup without polluting the plugin lifecycle (ADR 003) with execution-specific state. The Context Service owns context lifecycle; lifecycle hooks (optional per ADR 003) may observe but not control it.
+The per-plugin instance execution context strategy balances isolation and interoperability, aligning with ADR 005’s architectural boundaries. It enforces security (via ADR 004’s sandboxing) while respecting plugin-specific needs. By requiring Node Executor to request an Execution Context before materializing a Plugin Instance, we ensure deterministic cleanup without polluting the plugin lifecycle (ADR 003) with execution-specific state. The Context Manager owns context lifecycle; lifecycle hooks (optional per ADR 003) may observe but not control it.
 
-This design explicitly addresses workflow execution: each plugin instance in a workflow (Trigger, Condition, Transformer, Action) receives its own execution context immediately before execution begins. Contexts are not shared between plugins, nor are they reused across workflow executions. This avoids the ambiguity of "per-plugin" referring to type, instance, or workflow-level scope.
+This design explicitly addresses workflow execution: for each Workflow Node, Node Executor requests an Execution Context from Context Manager; Context Manager validates via Isolation Service and provisions the Execution Context; only then does Node Executor materialize a Plugin Instance. Contexts are not shared between Plugin Instances, nor are they reused across workflow executions. This avoids the ambiguity of "per-plugin" referring to type, instance, or workflow-level scope.
 
 ## Validation Criteria
-- Each plugin instance in a workflow runs in an isolated context with no shared state.
+- Node Executor requests and receives a provisioned Execution Context before materializing each Plugin Instance.
 - Memory/thread usage per context is bounded and traceable.
 - Security audits confirm adherence to the Security Contract during execution.
-- Contexts are correctly provisioned and destroyed for each plugin instance during execution.
+- Contexts are correctly provisioned by Context Manager and destroyed for each Plugin Instance during execution.
 - Stress tests validate performance under high plugin concurrency within workflows.
 
 ## Alternatives Considered
@@ -69,7 +72,7 @@ This design explicitly addresses workflow execution: each plugin instance in a w
 - **Plugin-Defined Context** – Risk of inconsistent security practices; violates Contract Model compliance – Rejected.
 
 ## Mandatory Rules
-- Execution contexts must be provisioned immediately before plugin instance execution and destroyed immediately after execution completes.
+- Execution contexts must be provisioned by Context Manager after Isolation Service validation before Node Executor materializes a Plugin Instance, and destroyed immediately after execution completes.
 - Plugins may only access platform metadata via negotiated protocols defined in the Runtime API Contract (ADR 004).
 - Changes that affect plugin-visible execution context behavior must follow the Plugin Contract Model versioning rules (ADR 005).
 
@@ -79,5 +82,5 @@ This design explicitly addresses workflow execution: each plugin instance in a w
 
 ## Forbidden Changes
 - Allow plugins to share execution memory spaces or threads outside the isolation model.
-- Bypass Core Engine context validation logic.
+- Bypass Context Manager or Isolation Service context validation logic.
 - Remove lifecycle cleanup requirements.

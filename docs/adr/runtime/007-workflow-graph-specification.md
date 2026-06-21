@@ -1,6 +1,6 @@
 # ADR 007: Workflow Graph Specification
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-01
 **Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 002, 003, 004, 005, 006
@@ -20,7 +20,7 @@ Constraints include maintaining compatibility with the Plugin Contract Model (AD
 | Term | Definition |
 |------|------------|
 | **Workflow Graph** | A directed acyclic graph (DAG) defining the structure and dependency relationships between plugin instances within a workflow. |
-| **Node** | A single execution point in the workflow, representing a plugin instance with configured inputs/outputs. |
+| **Node** | Static definition in the workflow graph that references a plugin type and its configuration; it does not directly instantiate a Plugin Instance at definition time. |
 | **Edge** | A directed connection between nodes defining data or event flow. |
 | **Workflow Context** | A workflow-scoped data container managed by the workflow runtime; it carries state through the graph by mapping node outputs to subsequent node inputs, ensuring no direct state sharing between plugin instances. **Workflow data propagation is mediated exclusively by the Workflow Runtime. Plugins never exchange data directly.** |
 
@@ -62,14 +62,14 @@ A DAG-based approach provides the right balance of expressiveness and analyzabil
 3. **Clear Isolation**: Each node's execution context (ADR 006) remains isolated even within a shared workflow.
 4. **Extensibility**: Support for advanced patterns (parallel execution, conditionals) without breaking core semantics.
 
-This aligns with ADR 005's emphasis on architectural boundaries and ADR 006's per-instance execution contexts.
+This aligns with ADR 005's emphasis on architectural boundaries and ADR 006's per-plugin instance execution contexts.
 
 ## Validation Criteria
 - All workflow graphs must be valid DAGs with no cycles.
 - Node input/output types must match connected edge types.
 - All referenced plugins must exist in the discovery registry (ADR 002).
 - Workflows must validate that required plugin permissions can be satisfied by the execution environment.
-- Workflow execution must respect the per-instance context isolation model.
+- Workflow execution must respect the per-execution context instance isolation model.
 
 ## Alternatives Considered
 - **Imperative Workflow Definition** – Define workflows as code sequences – Rejected for lack of static analyzability and validation.

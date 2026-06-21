@@ -2,18 +2,44 @@
 
 ```mermaid
 flowchart TD
-    %% Containers
-    core["Core Engine"]
-    pkgs["Plugin Packages"]
-    wfRuntime["Workflow Runtime\n(Node Executor, Routing Engine, Context Manager)"]
-    runtimeApi["Runtime API\n(Context, Logging, Metrics, Secrets)"]
-    isoService["Isolation Service\n(Permission Evaluation, Resource Mediation)"]
-    ext["Third-party APIs, databases"]
 
-    %% Relationships with labels
-    core -->|loads registry| pkgs
-    pkgs -->|provides registered plugin types to| wfRuntime
-    wfRuntime -->|provides services to| runtimeApi
-    runtimeApi -->|validates via| isoService
-    isoService -->|mediates| ext
+    Dev([Developer])
+    Arch([Architect])
+
+    subgraph PFA["Plugin-First Workflow Automation Platform"]
+
+        CE["Core Engine
+        (Registry Loader,
+        Lifecycle Manager,
+        Workflow Orchestrator)"]
+
+        PP["Plugin Packages
+        (Validated Plugin Artifacts)"]
+
+        CM["Context Manager
+        (Authorization Gateway,
+        Context Lifecycle)"]
+
+        RA["Plugin Runtime API
+        (Context, Logging,
+        Metrics, Secrets)"]
+
+        IS["Isolation Service
+        (Permission Evaluation,
+        Resource Mediation)"]
+
+    end
+
+    EXT["External Systems
+    (APIs, Databases, Queues, etc.)"]
+
+    Dev -->|Develops plugins & workflows| PFA
+    Arch -->|Defines contracts & governance| PFA
+
+    CE -->|Loads registry from| PP
+    CE -->|Initializes| CM
+
+    CM -->|Uses plugin services via| RA
+    RA -->|Validates access through| IS
+    IS -->|Mediates access to| EXT
 ```

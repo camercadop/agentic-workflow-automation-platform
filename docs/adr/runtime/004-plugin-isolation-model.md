@@ -27,17 +27,8 @@ Affected Architectural Goals:
 | **Capability** | A functional feature a plugin *provides* (e.g., "transform-data", "send-email"). Declared in the manifest during build-time registration (ADR 002). |
 | **Permission** | A right to access a specific **resource** (e.g., file `/tmp/data`, env `API_KEY`, network `api.example.com`). Granted at runtime by the Isolation Service. |
 
-### Runtime API Ownership
-The Core Engine exposes the Runtime API as the **sole boundary** for plugin interaction with platform services. This API is hierarchically organized as:
-- **Core Engine**
-  - **Runtime API**
-    - **Context API**: Access to execution contexts and metadata per ADR-006
-    - **Logging API**: Structured logging services
-    - **Metrics API**: Telemetry and monitoring data access
-    - **Secrets API**: Secure secret/parameter retrieval
-    - **Event API**: Event bus publish/subscribe interactions
-
-Plugins **never** access Core Engine internals. All interactions must flow through these explicitly exposed interfaces.
+### Runtime API Ownership (Plugin-Facing Interface)
+The Plugin Runtime API is accessed through the Context Manager, which acts as the single authority for authorization requests, delegating all resource access decisions to the **Isolation Service**. Plugins interact only with the Platform through the Plugin Runtime API, which channels all resource requests through the Context Manager to ensure isolation compliance.
 
 ## Decision
 Adopt a sandboxed architecture where plugins:
@@ -78,7 +69,7 @@ Plugins do **not** directly call the Isolation Service. They declare capabilitie
 
 ## Mandatory Rules
 - **Lifecycle Interface**: Plugins may implement lifecycle hooks for state transitions (Registered, Activated, Active, Deactivated, Cleaned Up).
-- **Runtime API Interface**: Plugins call platform services and request resource access through this interface; **resource access calls are evaluated for permissions** by the Isolation Service.
+- **Plugin Runtime API**: Plugins call platform services and request resource access through this interface; **resource access calls are evaluated for permissions** by the Isolation Service.
 - **Permissions**: The Isolation Service validates resource access requests through the Runtime API against policy.
 - **Isolation**: The Core Engine never directly evaluates permissions—only the Isolation Service does.
 
