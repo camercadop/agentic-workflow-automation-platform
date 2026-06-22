@@ -70,13 +70,16 @@ Workflows that are not strictly sequential; they may branch, run in parallel, an
 Independent component implementing one of the extensibility points (Trigger, Condition, Transformer, Action) and conforming to defined contracts.
 
 ## Plugin Instance
-Runtime Object materialized by Node Executor from a Workflow Node's referenced Plugin Type. It executes within its own Execution Context and may interact with platform services via Runtime API.
+Runtime Object materialized by Node Executor from a Workflow Node's referenced Plugin Type. It executes within its own Execution Context and may interact with platform services via the Plugin Runtime API.
+
+## Plugin Runtime API
+The standardized interface through which plugins interact with platform services (execution context, metadata, logging, metrics, configuration, event bus) and request resource access. All interactions are mediated by the Context Manager and validated by the Isolation Service to ensure compliance with the Plugin Isolation Model (ADR‑004).
 
 ## Plugin Contract Definitions (ADR‑005)
 Defines the standardized contracts that plugins must adhere to, described without reference to concrete classes, inheritance, or specific validation technologies.
 
 ## Plugin Contract Model
-Set of abstract base classes and schemas that define the required interface for each plugin type.
+Set of interface definitions and schemas that define the required interface for each plugin type, expressed in an implementation-neutral manner.
 
 ## Plugin First Architecture (ADR‑001)
 Design principle where all extensibility points are implemented as independent plugins; the core contains no business logic.

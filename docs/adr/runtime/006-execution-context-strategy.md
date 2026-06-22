@@ -32,8 +32,8 @@ Adopt a **per-plugin instance execution context strategy** where:
 - Context Manager validates the request via Isolation Service and provisions the Execution Context.
 - Node Executor materializes a Plugin Instance from the referenced Plugin Type and executes it within that Execution Context.
 - Contexts are destroyed immediately after Plugin Instance execution completes.
-- A **platform metadata service** (not a shared layer) exposes controlled, read-only access to approved platform metadata through the Runtime API.
-- Plugins can request additional context resources (threads, IPC channels) via the Runtime API, which the Context Manager forwards to the Isolation Service for evaluation and allocation.
+- A **platform metadata service** (not a shared layer) exposes controlled, read-only access to approved platform metadata through the Plugin Runtime API.
+- Plugins can request additional context resources (threads, IPC channels) via the Plugin Runtime API, which the Context Manager forwards to the Isolation Service for evaluation and allocation.
 
 This ensures that even within a single workflow, Plugin Instances run in entirely separate contexts, preventing interference.
 
@@ -73,7 +73,7 @@ This design explicitly addresses workflow execution: for each Workflow Node, Nod
 
 ## Mandatory Rules
 - Execution contexts must be provisioned by Context Manager after Isolation Service validation before Node Executor materializes a Plugin Instance, and destroyed immediately after execution completes.
-- Plugins may only access platform metadata via negotiated protocols defined in the Runtime API Contract (ADR 004).
+- Plugins may only access platform metadata via negotiated protocols defined in the Plugin Runtime API Contract (ADR 004).
 - Changes that affect plugin-visible execution context behavior must follow the Plugin Contract Model versioning rules (ADR 005).
 
 ## Allowed Changes

@@ -36,7 +36,7 @@ Adopt a Build-Time Validation Framework composed of non‑bypassable validation 
    - Compliance with Plugin Contract Model (ADR-005)
    - Contract version compatibility
    - Lifecycle state transition validation (ADR-003)
-   - Runtime API signature compliance
+   - Plugin Runtime API signature compliance
 
 3. **Security Validation Gate**
    - Declaration validation: Manifest capability-permission alignment
@@ -44,9 +44,11 @@ Adopt a Build-Time Validation Framework composed of non‑bypassable validation 
    - Plugin package validation: Ensuring compliance with the Plugin Isolation Model (ADR-004) enforcement requirements
 
 4. **Execution Context Validation Gate**
-   - Context requirement satisfaction
+   - Validates declared context requirements and policies (not runtime Execution Context instances)
+   - Context requirement satisfaction: Ensures declared requirements are well-formed and compatible
    - Declared resource requirements validation (CPU/memory/thread limits declared in manifest)
-   - Compatibility with execution model (ADR-006)
+   - Compatibility with execution model (ADR-006): Validates declared execution context policies against the execution model specification
+   - Note: Runtime Execution Context instances are provisioned and managed by the Context Manager at runtime per ADR-006
 
 5. **Workflow Validation Gate**
    - Workflow schema validation

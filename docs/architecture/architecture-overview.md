@@ -7,7 +7,7 @@ A concise overview of the system's architecture, including core components, exec
 The Core Engine Components are the foundational building blocks of the system architecture.
 ```
 Core Engine
-├── Plugin Contracts (BaseTrigger, BaseCondition, BaseTransformer, BaseAction)
+├── Plugin Contracts (Trigger, Condition, Transformer, Action interfaces)
 ├── Plugin Registry (Static Generation, Runtime Loading, Lifecycle)
 ├── Execution Context: Per-plugin-instance isolation boundary
 ├── Workflow Context: Mediated data‑propagation container for the workflow runtime
@@ -31,18 +31,18 @@ This section outlines the execution flow from build-time registration to governa
 5. Governance Checkpoints (ADR-defined validation points)
 ```
 
-## Governance Boundaries
+## Governance Boundaries (Design-time)
 
-This section defines the separation of responsibilities between architects and agents, outlining validation gates between workflow stages.
+This section defines the separation of responsibilities between architects and development agents during the design phase.
 - **Architect-Led**: Contracts, Execution Context definitions
-- **Agent-Executed**: Plugin implementations, workflow orchestration
-- **Validation Gates**: Defined per ADR (not yet specified)
+- **Development Agent-Assisted**: plugin implementation generation and workflow design artifacts
+- **Validation Gates**: Defined in ADR-009 (Governance and Validation Framework)
 
 ## Plugin Isolation Model
 
 This section explains how plugins are encapsulated and communicate only through the Execution Context for isolation, while data propagation between plugin instances is mediated by the Workflow Context.
 - Plugins inherit from Base classes
-- Plugins communicate only via Execution Context
+- Plugins communicate via Execution Context for isolation and via Workflow Context for data propagation
 - Core Engine enforces boundaries (mechanism TBD in ADR)
 
 ## Non-Linear Flow Support
@@ -50,7 +50,7 @@ This section explains how plugins are encapsulated and communicate only through 
 This section describes support for branching and merging workflows without requiring core modifications.
 - Workflow Definition allows branching/merging
 - Executor handles multiple paths without Core modification
-- Context carries state between branches
+- Workflow Context carries state between branches
 
 ## Extensibility Points
 
