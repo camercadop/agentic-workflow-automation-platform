@@ -1,7 +1,7 @@
 # ADR 004 - Plugin Isolation Model
 
 **Status:** Accepted
-**Date:** 2026-07-02
+**Date:** 2026-06-19
 **Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 001, 002, 003
 
@@ -28,7 +28,7 @@ Affected Architectural Goals:
 | **Permission** | A right to access a specific **resource** (e.g., file `/tmp/data`, env `API_KEY`, network `api.example.com`). Granted at runtime by the Isolation Service. |
 
 ### Runtime API Ownership (Plugin-Facing Interface)
-The Plugin Runtime API is accessed through the Context Manager, which acts as the single authority for authorization requests, delegating all resource access decisions to the **Isolation Service**. Plugins interact only with the Platform through the Plugin Runtime API, which channels all resource requests through the Context Manager to ensure isolation compliance.
+The Context Manager is the authorization and resource-access gateway of the Plugin Runtime API. All resource requests are channeled through it to ensure isolation compliance; the Context Manager delegates authorization decisions to the Isolation Service. Plugins interact only with the Platform through the Plugin Runtime API.
 
 ## Decision
 Adopt a sandboxed architecture where plugins:
@@ -36,7 +36,7 @@ Adopt a sandboxed architecture where plugins:
 2. Interact with the system through two distinct interfaces:
    - **Lifecycle Interface**: Used for plugin registration outcomes and lifecycle state transitions (ADRs 002/003).
    - **Runtime API Interface**: Used to access platform services (execution context, metadata, logging, metrics, configuration, event bus) and resource access.
-3. Resource **permissions** are validated by the Isolation Service whenever a plugin calls the Runtime API; the service validates requests against policy.
+3. Resource access requests submitted through the Runtime API are validated by the Isolation Service against the active policy model.
 4. Cannot reference or modify other plugins’ code/data directly.
 
 ## Consequences
@@ -57,10 +57,12 @@ Adopt a sandboxed architecture where plugins:
 - Test 1: A plugin with capability `read-files` cannot read `/etc/passwd` unless explicitly granted `file:/etc/passwd` permission.
 - Test 2: Plugins cannot modify Core Engine’s internal state (e.g., configuration, hooks).
 - Test 3: Core Engine rejects any plugin attempt to reference another plugin’s class/data.
-- Test 4: Plugins interact only with the Core Engine’s public API contract, comprising the Lifecycle Interface (discovery and lifecycle transitions) and the Runtime API Interface (execution context, metadata, logging, metrics, configuration, event bus, and resource access via the Isolation Service).
+- Test 4: Plugins interact only with the Platform public API contract, comprising the Lifecycle Interface (registration and lifecycle transitions) and the Runtime API Interface (execution context, metadata, logging, metrics, configuration, event bus, and resource access via the Context Manager and Isolation Service).
 
 ## Clarification
-Plugins do **not** directly call the Isolation Service. They declare capabilities via the build‑time registration process and request permissions through the **Runtime API Interface**; the Core Engine forwards these requests to the Isolation Service, which evaluates them against policy and enforces isolation. The Core Engine’s role remains limited to routing and coordination, preserving its lightweight nature.
+Plugins do not directly call the Isolation Service.
+Resource access requests are submitted through the Runtime API and routed by the Context Manager to the Isolation Service for policy evaluation.
+The Core Engine remains responsible for orchestration and lifecycle coordination.
 
 ## Alternatives Considered
 - Peer-to-peer plugin communication: Rejected because it violates isolation and introduces shared state risks.
@@ -72,6 +74,7 @@ Plugins do **not** directly call the Isolation Service. They declare capabilitie
 - **Plugin Runtime API**: Plugins call platform services and request resource access through this interface; **resource access calls are evaluated for permissions** by the Isolation Service.
 - **Permissions**: The Isolation Service validates resource access requests through the Runtime API against policy.
 - **Isolation**: The Core Engine never directly evaluates permissions—only the Isolation Service does.
+- **Authorization Authority**: The Isolation Service is the sole component allowed to grant or deny permissions.
 
 ## Allowed Changes
 - Adjust sandboxing implementation (e.g., process vs. VM isolation).

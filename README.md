@@ -36,13 +36,13 @@ This platform implements an **agentic software development lifecycle** (ASDL) an
 4. **Build-Time Governance (ADR-009)**: Compliance enforced via static validation gates during CI/CD.
 5. **Composable Workflows (ADR-007)**: Workflows are DAGs enabling branching, parallelism, and merge points.
 
-### Core Components
+## Core Components
 These components embody the architectural principles defined in the ADRs and form the foundation of the platform's runtime behavior.
 
-- **Workflow Runtime (ADR-007)**: Executes the workflow DAG, respecting defined dependencies, non-linear paths, and pruning invalid branches. Validated during build time.
-- **Plugin Contract Model (ADR-005)**: Standardizes interfaces via abstract base classes (`BaseTrigger`, `BaseCondition`, `BaseTransformer`, `BaseAction`). Enforced by Pydantic schemas at registration.
-- **Execution Context (ADR-006)**: Per-execution context instance isolation boundary that encapsulates memory, threads, and sandbox scopes. Ensures complete isolation even within the same workflow.
-- **Build-Time Validation Framework (ADR-009)**: Enforces architectural compliance through gates (Manifest, Contract, Security, Context, Workflow) before deployment.
+-- **Workflow Runtime (ADR-007)**: Executes the workflow DAG, respecting defined dependencies, non-linear paths, and pruning invalid branches. Validated during build time.
+-- **Plugin Contract Model (ADR-005)**: Defines standardized interfaces and contracts for plugins without exposing concrete implementation classes or validation mechanisms.
+-- **Execution Context (ADR-006)**: Per‑execution context instance isolation boundary that encapsulates memory, threads, and sandbox scopes. Ensures complete isolation even within the same workflow.
+-- **Build‑Time Validation Framework (ADR‑009)**: Enforces architectural compliance through gates (Manifest, Contract, Security, Context, Workflow) before deployment.
 
 ### System Structure
 | Layer | Responsibility | ADR Reference |
@@ -64,8 +64,7 @@ Consider a simple **Email Alert** workflow:
 
 All four steps are implemented as separate plugins, enabling independent development and reuse across workflows.
 
-### Core Engine Responsibilities
-- **Plugin Registry Loading**: Plugins are statically registered via `pyproject.toml` at build time and loaded from the generated registry at startup. No runtime discovery is performed (see ADR‑002).
+- **Plugin Registry Loading**: Plugins are statically registered via a build‑time configuration file and loaded from the generated registry at startup. No runtime discovery is performed (see ADR‑002).
 - **Lifecycle Management**: Manages plugin lifecycle states (Registered, Activated, Active, Deactivated, Cleaned Up) as defined in ADR‑003.
 - **Workflow Orchestration**: Executes the workflow DAG, respecting defined dependencies, non‑linear paths, and per‑instance execution contexts (ADR‑006).
 
@@ -88,8 +87,8 @@ Clear architectural boundaries separate plugin execution from core governance.
 - **Governance Gates (ADR-009)**: Automated validation checkpoints at plugin registration, workflow definition (pre-deployment)
 
 ## Plugin Architecture
-- **Contract-First**: Each plugin implements a concrete subclass of a core abstract base (`BaseTrigger`, `BaseCondition`, `BaseTransformer`, `BaseAction`) conforming to the Plugin Contract Model (ADR-005).
-- **Metadata-Driven**: Plugins ship a `plugin.yaml` describing type, name, version, entry point, and dependencies for build-time registration (ADR-002).
+- **Contract-First**: Plugins are developed to conform to the standardized contracts defined by the Plugin Contract Model (ADR-005), without reference to specific implementation classes.
+- **Metadata-Driven**: Plugins declare metadata through standardized manifests (see ADR-002).
 - **Build-Time Registration**: Plugins are validated during CI/CD, generating a static registry. No runtime discovery is performed.
 - **Isolation & Validation**: Plugins execute in isolated contexts with contract validation; failures are reported during validation (ADR-004).
 

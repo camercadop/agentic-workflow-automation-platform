@@ -24,6 +24,10 @@ flowchart TD
         (Context, Logging,
         Metrics, Secrets)"]
 
+        PS["Platform API
+        (External Workflow
+        Submission, Control)"]
+
         IS["Isolation Service
         (Permission Evaluation,
         Resource Mediation)"]

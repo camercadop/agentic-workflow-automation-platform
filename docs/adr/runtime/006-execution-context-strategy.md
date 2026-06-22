@@ -1,7 +1,7 @@
 # ADR 006: Execution Context Strategy
 
 **Status:** Accepted
-**Date:** 2026-07-01
+**Date:** 2026-06-19
 **Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 002, 003, 004, 005
 
@@ -33,7 +33,7 @@ Adopt a **per-plugin instance execution context strategy** where:
 - Node Executor materializes a Plugin Instance from the referenced Plugin Type and executes it within that Execution Context.
 - Contexts are destroyed immediately after Plugin Instance execution completes.
 - A **platform metadata service** (not a shared layer) exposes controlled, read-only access to approved platform metadata through the Runtime API.
-- Plugins can request additional context resources (threads, IPC channels) via the Runtime API, which the Core Engine forwards to the Isolation Service for evaluation and allocation.
+- Plugins can request additional context resources (threads, IPC channels) via the Runtime API, which the Context Manager forwards to the Isolation Service for evaluation and allocation.
 
 This ensures that even within a single workflow, Plugin Instances run in entirely separate contexts, preventing interference.
 

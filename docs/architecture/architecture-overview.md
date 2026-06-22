@@ -8,18 +8,19 @@ The Core Engine Components are the foundational building blocks of the system ar
 ```
 Core Engine
 ├── Plugin Contracts (BaseTrigger, BaseCondition, BaseTransformer, BaseAction)
-├── Plugin Registry (Discovery, Loading, Lifecycle)
-├── Execution Context: Workflow state container
+├── Plugin Registry (Static Generation, Runtime Loading, Lifecycle)
+├── Execution Context: Per-plugin-instance isolation boundary
+├── Workflow Context: Mediated data‑propagation container for the workflow runtime
 ├── Workflow Definition (Graph-based flow)
 └── Workflow Executor (Non-linear orchestrator)
 ```
 
 ## Execution Flow
 
-This section outlines the execution flow from discovery to governance checkpoints.
+This section outlines the execution flow from build-time registration to governance checkpoints.
 
 ```
-1. Plugin Discovery (via entry-points)
+1. Build-time Registration & Static Registry Generation
 2. Plugin Registration (Registry)
 3. Workflow Definition (Graph definition)
 4. Workflow Execution:
@@ -39,7 +40,7 @@ This section defines the separation of responsibilities between architects and a
 
 ## Plugin Isolation Model
 
-This section explains how plugins are encapsulated and communicate only through the Execution Context.
+This section explains how plugins are encapsulated and communicate only through the Execution Context for isolation, while data propagation between plugin instances is mediated by the Workflow Context.
 - Plugins inherit from Base classes
 - Plugins communicate only via Execution Context
 - Core Engine enforces boundaries (mechanism TBD in ADR)

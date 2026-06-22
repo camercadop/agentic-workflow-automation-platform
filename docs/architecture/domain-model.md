@@ -18,7 +18,10 @@ Different types of plugins serve distinct roles in workflow processing:
 - **Actions** perform external operations or produce outcomes
 
 ### Execution Context
-The execution context carries information between processing steps in a workflow. It maintains the state of data as it progresses through different plugins, ensuring each step has access to necessary information while preserving data integrity.
+The **Execution Context** is a per‑plugin‑instance isolation boundary. Each plugin execution receives its own isolated context that provides memory, threading, and sandbox scopes. It exists only for the duration of that plugin's execution and is not shared with other plugins.
+
+### Workflow Context
+The **Workflow Context** is a mediated data‑propagation container managed by the workflow runtime. It carries state through the workflow graph, mapping node outputs to subsequent node inputs. Plugins read from and write to the Workflow Context, but never exchange data directly.
 
 ### Workflow Execution
 A workflow execution is a specific instance of running a workflow with particular input data. It represents the actual processing that occurs when a workflow is activated.
@@ -30,9 +33,10 @@ The plugin registry is a system component that manages available plugins, making
 
 ## Relationships (Conceptual)
 - **Workflow ↔ Plugin**: A Workflow *composes* Plugins into a directed graph; each Plugin is referenced by ID and position. The Workflow owns the topology, while Plugins remain unaware of the graph.
-- **Plugin ↔ Execution Context**: A Plugin *consumes* an Execution Context snapshot and *produces* a new snapshot. The Context carries all state; the Plugin never accesses global state.
+- **Plugin ↔ Execution Context**: A Plugin *consumes* its own isolated Execution Context for the duration of its execution. The context provides sandboxed resources and is discarded after the plugin completes.
+- **Plugin ↔ Workflow Context**: A Plugin reads required inputs from the Workflow Context and writes its outputs back to it, enabling mediated data propagation without direct state sharing.
 - **Workflow Execution ↔ Workflow**: A Workflow Execution is a *runtime instance* of a Workflow definition. It materializes the graph with concrete input data and tracks progression.
-- **Workflow Execution ↔ Execution Context**: A single Execution Context *flows through* the entire Workflow Execution, mutated at each step. It is the thread of data continuity.
+- **Workflow Execution ↔ Workflow Context**: The Workflow Execution manages a single Workflow Context that is passed through the graph. Each plugin reads from and writes to this context, while its own Execution Context remains isolated.
 - **Plugin Registry ↔ Workflow**: Workflows can only reference Plugins that are registered and validated in the Plugin Registry.
 - **Plugin ↔ Plugin**: Plugins *never interact directly*. Dependencies are expressed through Context data requirements. This ensures isolation and testability.
 

@@ -11,7 +11,7 @@ The platform lacks standardized plugin contracts, leading to inconsistent interf
 We must balance this standardization with backward compatibility and flexibility. The goal is to improve modularity and maintainability by defining clear, predictable boundaries between the platform and its plugins.
 
 ## What is a Plugin Contract?
-A Plugin Contract is a versioned architectural specification that defines the boundaries, guarantees, and interaction models between plugins and the platform. It unifies the Discovery, Lifecycle, Runtime API, and Security contracts (from ADR-002, ADR-003, and ADR-004) into a single model that enables the platform to assess compatibility.
+A Plugin Contract is a versioned architectural specification that defines the boundaries, guarantees, and interaction models between plugins and the platform. It unifies the Registry, Lifecycle, Runtime API, and Security contracts (from ADR-002, ADR-003, and ADR-004) into a single model that enables the platform to assess compatibility.
 
 ## Plugin Contract Model Decomposition
 The Plugin Contract Model is composed of four constituent contracts, each addressing a distinct interaction concern:
@@ -34,7 +34,7 @@ This approach emphasizes defining clear architectural contracts for how plugins 
 
 ## Consequences
 **Positive**
-- Unifies Discovery (ADR-002), Lifecycle (ADR-003), Runtime API (ADR-004), and Security (ADR-004) contracts into a single versioned contract
+- Unifies Registry Contract (ADR-002), Lifecycle (ADR-003), Runtime API (ADR-004), and Security (ADR-004) contracts into a single versioned contract
 - Clear compatibility boundaries for plugin updates and platform evolution
 - Reduced integration testing effort through standardized contracts
 - Plugin compatibility is determined against the Plugin Contract Model version rather than implementation details
@@ -64,7 +64,7 @@ The trade-off is the initial effort required to define and implement these contr
 ## Mandatory Rules
 - All plugins must comply with the Plugin Contract Model defined in this ADR. This includes:
   - Complying with the Lifecycle Contract (ADR-003), including optional lifecycle hooks where implemented
-  - Adhering to Discovery standards (ADR-002)
+  - Adhering to Registry Contract standards (ADR-002)
   - Adhering to Security standards (ADR-004)
   - Following runtime API usage patterns (Event Bus, Metadata, Context, Logging)
   - Observing versioning and compatibility rules

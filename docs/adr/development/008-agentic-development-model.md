@@ -45,7 +45,7 @@ Agents are **explicitly separate** from the runtime architecture defined in ADRs
 | Workflows | Designed with Architect Agent input |
 | Execution Contexts | Not created or managed by agents |
 | Plugin Contracts | Enforced by Architect Agent verification |
-| Discovery (ADR-002) | Agents generate compliant manifests |
+| Manifest Handling (ADR-002) | Agents generate compliant manifests |
 | Lifecycle (ADR-003) | Agents produce lifecycle-compliant code |
 | Isolation (ADR-004) | Agents ensure generated code respects boundaries |
 
