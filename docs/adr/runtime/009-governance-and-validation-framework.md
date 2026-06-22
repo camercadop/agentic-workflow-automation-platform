@@ -10,7 +10,7 @@
 
 ## Terminology
 - **Governance Framework**: Collection of validation gates that enforce the runtime architecture defined by ADR-001 through ADR-007.
-- **Validation Engine**: Build‑time component that executes validation gates and produces validation reports. It is the implementation artifact of the Governance Framework and runs as part of the CI/CD pipeline.
+- **Validation Engine**: Build‑time component that executes validation gates and produces validation reports. It is the implementation artifact of the Governance Framework and runs as part of the CI/CD pipeline. The validation reports are used by the Registry Builder tool to compile the final Static Registry artifact.
 - **Artifact**: Any component (Plugin, Manifest, Workflow Graph, Execution Context) subject to validation.
 - **Deployment**: The process where validated artifacts are packaged into the application deployment.
 - **Pre-Deployment**: Phase of CI/CD pipeline where validation gates are enforced.

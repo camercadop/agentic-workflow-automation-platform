@@ -1,7 +1,7 @@
 # ADR 004 - Plugin Isolation Model
 
 **Status:** Accepted
-**Date:** 2026-06-19
+**Date:** 2026-06-22
 **Authors:** Carlos Mercado <carlosmercadop714@gmail.com>
 **Related ADRs:** 001, 002, 003
 
@@ -38,6 +38,17 @@ Adopt a sandboxed architecture where plugins:
    - **Plugin Runtime API Interface**: Used to access platform services (execution context, metadata, logging, metrics, configuration, event bus) and resource access.
 3. Resource access requests submitted through the Plugin Runtime API are validated by the Isolation Service against the active policy model.
 4. Cannot reference or modify other plugins’ code/data directly.
+
+### Permission Validation Boundaries
+Permission validation occurs at both build-time and runtime with distinct responsibilities:
+- **Build-time Validation** (Governance Framework - ADR-009):
+  - Security Validation Gate validates manifest capability-permission alignment and initial permission set well-formedness
+  - Workflow Validation Gate verifies permission satisfiability across the workflow graph
+  - These gates ensure structural correctness and static policy compliance
+- **Runtime Validation** (Isolation Service - this ADR):
+  - Binds context tokens and verifies dynamic runtime parameters (e.g., specific file paths, API tokens, session lifetimes)
+  - Evaluates resource access requests against the active policy model in the current execution context
+  - Enforces dynamic, context-aware access decisions that cannot be determined statically
 
 ## Consequences
 **Positive**

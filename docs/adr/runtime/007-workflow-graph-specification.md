@@ -23,6 +23,8 @@ Constraints include maintaining compatibility with the Plugin Contract Model (AD
 | **Node** | Static definition in the workflow graph that references a plugin type and its configuration; it does not directly instantiate a Plugin Instance at definition time. |
 | **Edge** | A directed connection between nodes defining data or event flow. |
 | **Workflow Context** | A runtime‑owned, mediated data‑mapping container scoped to a workflow execution. The workflow runtime owns and controls this context, mapping node outputs to subsequent node inputs. It is not directly readable shared state; plugins interact with it only through the runtime’s mediation, ensuring isolation between plugin instances. |
+| **Routing Engine** | Workflow Runtime component that determines the order of node execution based on DAG dependencies and handles branching/merging logic during workflow execution. |
+| **Node Executor** | Workflow Runtime component that requests an Execution Context from Context Manager, materializes a Plugin Instance from the referenced Plugin Type, and executes it within that Execution Context. |
 
 ## Decision
 Workflow graphs are **directed acyclic graphs** where:
@@ -30,7 +32,7 @@ Workflow graphs are **directed acyclic graphs** where:
 - **Edge** connections enforce type‑safe data flow from a node’s output to another node’s input, validated against both the originating plugin's output contract and the destination plugin's input contract.
 - The graph is validated for acyclicity, contract compatibility, and plugin presence.
 
-Following validation, workflow execution is guided by the graph’s dependency structure. Runtime routing decisions (such as conditional branches or parallel paths) determine the exact execution flow, while topological ordering defines node eligibility.
+Following validation, workflow execution is guided by the graph’s dependency structure. The **Routing Engine** determines the exact execution path by evaluating runtime conditions (such as conditional branches or parallel paths), while the **Node Executor** handles the actual execution of each node by requesting Execution Contexts, materializing Plugin Instances, and running them in isolation. Topological ordering from the Routing Engine defines node eligibility for the Node Executor.
 
 This clear structural model provides static analysis guarantees and aligns with the isolation and permission rules of the platform.
 

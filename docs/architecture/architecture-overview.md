@@ -42,7 +42,7 @@ This section defines the separation of responsibilities between architects and d
 ## Plugin Isolation Model
 
 Plugins execute within isolated Execution Contexts; data propagation between plugin instances is mediated only by the Workflow Context.
-- Plugins inherit from Base classes
+- Plugins implement interfaces defined by the Plugin Contract Model
 - Plugins use Execution Contexts for isolation and Workflow Context for mediated data propagation.
 - Core Engine coordinates orchestration; Context Manager routes access requests; Isolation Service is sole authorization authority.
 

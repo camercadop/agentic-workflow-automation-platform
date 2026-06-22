@@ -58,36 +58,44 @@ stateDiagram-v2
 ```
 
 Plugin:
-- Available: Plugin is made known to the system
-- Verified: Plugin meets architectural and behavioral contracts
-- Integrated: Plugin becomes part of the managed set
-- Allocated: Memory and resources provisioned for execution
-- Active: Plugin performs its designated function
-- Released: Resources are reclaimed after use
+ - Registered: Plugin is registered in the plugin registry
+ - Activated: Plugin is activated and ready for execution
+ - Active: Plugin is executing its function
+ - Deactivated: Plugin is deactivated but still registered
+ - Cleaned Up: Plugin resources are cleaned up and removed from active management
+
+ ```mermaid
+ stateDiagram-v2
+     [*] --> Registered
+     Registered --> Activated: activate
+     Activated --> Active: execute
+     Active --> Deactivated: deactivate
+     Deactivated --> Cleaned Up: cleanup
+     Cleaned Up --> [*]
+
+Execution Context:
+- Created: Created for a specific plugin execution
+- Active: Plugin is executing within this context
+- Destroyed: Context is destroyed after plugin completes (or on error)
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Available
-    Available --> Verified: register
-    Verified --> Integrated: validate
-    Integrated --> Allocated: allocate
-    Allocated --> Active: start
-    Active --> Released: release
-    Released --> [*]
+    [*] --> Created
+    Created --> Active: execute
+    Active --> Destroyed: complete
+    Destroyed --> [*]
 ```
 
-Execution Context:
-- Initialized: Created for new execution
-- Passed: Sent to first plugin
-- Modified: Each plugin returns new version
-- Finalized: Persisted as execution result
+Workflow Context:
+- Initialized: Created at workflow start with initial input
+- Updated: Modified by a plugin (each plugin reads and writes, creating a new version for the next)
+- Finalized: Persisted as the workflow execution result
 
 ```mermaid
 stateDiagram-v2
     [*] --> Initialized
-    Initialized --> Passed: create
-    Passed --> Modified: mutate
-    Modified --> Finalized: finalize
+    Initialized --> Updated: mutate
+    Updated --> Finalized: finalize
     Finalized --> [*]
 ```
 

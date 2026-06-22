@@ -14,8 +14,8 @@ The platform operates under a strict build-time registration model for plugins:
 Adopt a **Build-Time Plugin Registration** approach:
 - Plugins declare metadata, capabilities, and contract information through standardized manifests
 - During CI/CD pipeline:
-  1. Validate manifests against Plugin Contract Model (ADR-005)
-  2. Generate a static plugin registry from validated artifacts
+  1. Validate manifests against Plugin Contract Model (ADR-005) using the Validation Engine (ADR-009)
+  2. Upon successful validation, the Registry Builder tool compiles the final Static Registry artifact from validated artifacts
   3. Package registry with application
 - At startup, the Core Engine loads the pre-generated registry as the sole source of plugin registration information
 
@@ -43,8 +43,9 @@ Adopt a **Build-Time Plugin Registration** approach:
 
 ## Rationale
 This model reflects the actual architecture:
-1. **CI/CD**: Manifests are validated against Plugin Contract Model (ADR-005) and platform contracts
-2. **Runtime**: Core Engine loads plugin definitions exclusively from the pre-generated registry
+1. **CI/CD**: Manifests are validated against Plugin Contract Model (ADR-005) and platform contracts by the Validation Engine (ADR-009)
+2. **Registry Generation**: The Registry Builder tool compiles the final Static Registry from validated artifacts
+3. **Runtime**: Core Engine loads plugin definitions exclusively from the pre-generated registry
 
 This approach maintains core minimalism while providing deterministic configuration and security through build-time validation.
 
