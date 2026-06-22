@@ -24,10 +24,11 @@ This section outlines the execution flow from build-time registration to governa
 2. Plugin Registration (Registry)
 3. Workflow Definition (Graph definition)
 4. Workflow Execution:
-   - Trigger fires -> Context created
-   - Conditions evaluated -> Branching decisions
-   - Transformers process -> Context updated
-   - Actions executed -> Side effects
+   - Trigger fires -> Plugin Instance executes within Execution Context (isolation) and accesses Workflow Context
+   - Conditions evaluated -> Plugin Instance executes within Execution Context (isolation) and accesses Workflow Context (branching decisions)
+   - Transformers process -> Plugin Instance executes within Execution Context (isolation) and accesses Workflow Context (data updates)
+   - Actions executed -> Plugin Instance executes within Execution Context (isolation) and accesses Workflow Context (side effects)
+   - Execution Context destroyed after each plugin instance execution
 5. Governance Checkpoints (ADR-defined validation points)
 ```
 
@@ -40,10 +41,10 @@ This section defines the separation of responsibilities between architects and d
 
 ## Plugin Isolation Model
 
-This section explains how plugins are encapsulated and communicate only through the Execution Context for isolation, while data propagation between plugin instances is mediated by the Workflow Context.
+Plugins execute within isolated Execution Contexts; data propagation between plugin instances is mediated only by the Workflow Context.
 - Plugins inherit from Base classes
-- Plugins communicate via Execution Context for isolation and via Workflow Context for data propagation
-- Core Engine enforces boundaries (mechanism TBD in ADR)
+- Plugins use Execution Contexts for isolation and Workflow Context for mediated data propagation.
+- Core Engine coordinates orchestration; Context Manager routes access requests; Isolation Service is sole authorization authority.
 
 ## Non-Linear Flow Support
 
