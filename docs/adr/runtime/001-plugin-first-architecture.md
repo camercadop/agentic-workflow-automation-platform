@@ -31,6 +31,9 @@ The platform distinguishes between: (a) Execution Context: the boundary of isola
 - Plugins must be independent components
 - The architecture must support non-linear workflow execution
 
+## Core‑Native Plugins
+Plugins whose references are hard‑coded into the Core Engine are considered part of the Core Engine. Such core‑native plugins must contain **no business logic**; they may only provide infrastructure concerns (e.g., basic lifecycle hooks, registry‑loading helpers) that are strictly required for the Core Engine to function.
+
 ## Allowed Changes
 - Implementation details of the plugin mechanism
 - **Registry loading mechanisms**

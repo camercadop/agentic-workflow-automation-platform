@@ -10,13 +10,10 @@
 
 ## Terminology
 - **Governance Framework**: Collection of validation gates that enforce the runtime architecture defined by ADR-001 through ADR-007.
-- **Validation Engine**: Build‑time component that executes validation gates and produces validation reports. It is the implementation artifact of the Governance Framework and runs as part of the CI/CD pipeline. The validation reports are used by the Registry Builder tool to compile the final Static Registry artifact.
-- **Artifact**: Any component (Plugin, Manifest, Workflow Graph, Execution Context) subject to validation.
-- **Deployment**: The process where validated artifacts are packaged into the application deployment.
-- **Pre-Deployment**: Phase of CI/CD pipeline where validation gates are enforced.
+ **Validation Engine**: **Build‑time (development‑time)** component (executed during CI/CD) that runs the validation gates and produces validation reports. It **does not** exist as a runtime component and is not part of the deployed platform. The validation reports are used by the Registry Builder tool to compile the final Static Registry artifact. **This positions the engine outside the runtime architecture, aligning with ADR‑008.**
 
 ## Decision
-Adopt a Build-Time Validation Framework composed of non‑bypassable validation gates. During the CI/CD pipeline, plugins, manifests, contracts, permissions, execution contexts, and workflow graphs must strictly adhere to the architectural specifications defined in ADR-001 through ADR-007 before they may be bundled into the application. No human approvals or runtime admission gates are part of this architectural model.
+ **The Validation Engine operates exclusively at build time (development‑time) and is never deployed as a runtime service**, ensuring consistency with the Agent‑Assisted Development Model (ADR‑008) which restricts agents to development‑time activities. **This explicit positioning makes the engine outside the runtime architecture.**
 
 ## Relationship with Existing ADRs
 - ADR-002 governs registration requirements validated by the Manifest Validation Gate.

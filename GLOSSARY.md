@@ -45,17 +45,17 @@ Runtime Object provisioned by Context Manager before a Plugin Instance executes;
 ## Execution Context Strategy (ADR‑006)
 Per‑Plugin Instance isolation that encapsulates memory, threads, and sandbox scopes, ensuring complete isolation even within the same workflow.
 
-## Isolation Service
-Single authority for authorization decisions. All permission evaluations are performed here, and no other component is allowed to decide on access rights.
-
-## Validation Gates
-Validation steps that prevent non‑compliant artifacts from entering the registry.
-
 ## Governance and Validation Framework (ADR‑009)
 Build‑time validation gates (manifest, contract, security, context, workflow) that enforce architectural compliance before deployment.
 
+## Isolation Service
+Single authority for granting or denying permissions. All permission evaluations are performed here, and no other component is allowed to decide on access rights.
+
 ## Lifecycle Hook
 Optional function a plugin may implement to react to lifecycle state transitions (e.g., `on_activated`).
+
+## Manifest
+Standardized metadata file (typically `manifest.yaml` or `manifest.json`) that describes a plugin's capabilities, version, entry points, required permissions, and other contract‑related information. Manifests are validated at build time against the Plugin Contract Model and are used by the Registry Builder tool to generate the Static Registry.
 
 ## Metadata‑Driven
 Plugins declare capabilities, version, and entry points via a standardized manifest processed at build time.
@@ -66,14 +66,11 @@ Runtime Component within Workflow Runtime that requests an Execution Context fro
 ## Non‑Linear Pipelines
 Workflows that are not strictly sequential; they may branch, run in parallel, and converge.
 
+## Platform API
+Programmatic interface exposed by the platform for **external callers** to submit workflow definitions, query execution status, and control workflow execution. It is the public-facing endpoint of the system.
+
 ## Plugin
 Independent component implementing one of the extensibility points (Trigger, Condition, Transformer, Action) and conforming to defined contracts.
-
-## Plugin Instance
-Runtime Object materialized by Node Executor from a Workflow Node's referenced Plugin Type. It executes within its own Execution Context and may interact with platform services via the Plugin Runtime API.
-
-## Plugin Runtime API
-The standardized interface through which plugins interact with platform services (execution context, metadata, logging, metrics, configuration, event bus) and request resource access. All interactions are mediated by the Context Manager and validated by the Isolation Service to ensure compliance with the Plugin Isolation Model (ADR‑004).
 
 ## Plugin Contract Definitions (ADR‑005)
 Defines the standardized contracts that plugins must adhere to, described without reference to concrete classes, inheritance, or specific validation technologies.
@@ -87,28 +84,32 @@ Design principle where all extensibility points are implemented as independent p
 ## Plugin Generator Agent
 Agent that creates plugins compliant with the platform’s contract model.
 
+## Plugin Instance
+Runtime Object materialized by Node Executor from a Workflow Node's referenced Plugin Type. It executes within its own Execution Context and may interact with platform services via the Plugin Runtime API.
+
 ## Plugin Isolation Model (ADR‑004)
 Plugins run in sandboxed execution contexts with strict contract boundaries, preventing direct access to core internals.
 
 ## Plugin Lifecycle Model (ADR‑003)
 State machine for plugins: **Registered → Activated → Active → Deactivated → Cleaned Up**; optional hooks may be implemented for each transition.
 
-## Plugin Registration
-(Covered by Build‑Time Plugin Registration ADR‑002.)
-
-
-
 ## Plugin Package
 Distributable artifact (e.g., wheel, zip) that contains a plugin's compiled code, its standardized metadata manifest, and any required resources for registration and execution.
 
-## Static Registry
-Generated artifact containing all validated plugin definitions; loaded by the Core Engine at startup.
+## Plugin Registration
+(Covered by Build‑Time Plugin Registration ADR‑002.)
 
-## Platform API
-Programmatic interface exposed by the platform for **external callers** to submit workflow definitions, query execution status, and control workflow execution. It is the public-facing endpoint of the system.
+## Plugin Runtime API
+The standardized interface through which plugins interact with platform services (execution context, metadata, logging, metrics, configuration, event bus) and request resource access. All interactions are mediated by the Context Manager and validated by the Isolation Service to ensure compliance with the Plugin Isolation Model (ADR‑004).
+
+## Registry Builder tool
+Build‑time utility that consumes validated plugin manifests, contracts, and other artifacts (produced by the Validation Engine) to assemble the **Static Registry**. The tool resolves dependencies, enforces version compatibility, and outputs a single artifact containing all plugin definitions that the Core Engine loads at startup.
 
 ## Skill
 Reusable capability or tool that an agent can invoke (e.g., linters, formatters, validators).
+
+## Static Registry
+Generated artifact containing all validated plugin definitions; loaded by the Core Engine at startup.
 
 ## Subagent
 Temporary specialized agent spawned by another agent to complete a bounded task.
@@ -119,15 +120,18 @@ Agent that produces unit, integration, and contract tests for generated artifact
 ## Validation Engine
 Build‑time component that executes validation gates and produces validation reports. It is the implementation artifact of the Governance Framework and runs as part of the CI/CD pipeline. The validation reports are used by the Registry Builder tool to compile the final Static Registry artifact.
 
-## Workflow Runtime
-Component that executes the workflow DAG, respecting dependencies and isolation rules. It is composed of:
-
-* **Node Executor** – requests an Execution Context from Context Manager, materializes a Plugin Instance from the referenced Plugin Type, and executes it within that Execution Context.
-* **Routing Engine** – determines the order of node execution based on DAG dependencies and handles branching/merging.
-* **Context Manager** – Single authorization gateway for plugins. It forwards all resource requests to the Isolation Service and ensures that only approved permissions are granted.
+## Validation Gates
+Validation steps that prevent non‑compliant artifacts from entering the registry.
 
 ## Workflow Context
 Runtime‑owned, mediated data‑mapping container scoped to a workflow execution. The workflow runtime owns and controls this context, mapping node outputs to subsequent node inputs. Plugins interact with it only through the runtime’s mediation, ensuring isolation between plugin instances.
 
 ## Workflow Node
 Static definition in a Workflow Graph that references a Plugin Type and its configuration. A Workflow Node does not create runtime objects; Node Executor materializes a Plugin Instance when the node is scheduled.
+
+## Workflow Runtime
+Component that executes the workflow DAG, respecting dependencies and isolation rules. It is composed of:
+
+* **Node Executor** – requests an Execution Context from Context Manager, materializes a Plugin Instance from the referenced Plugin Type, and executes it within that Execution Context.
+* **Routing Engine** – determines the order of node execution based on DAG dependencies and handles branching/merging.
+* **Context Manager** – Single entry point for authorization requests; delegates all authorization decisions to Isolation Service.

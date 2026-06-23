@@ -23,13 +23,14 @@ The platform must manage how plugins execute tasks within a standardized, secure
 | **Context Manager** | Single entry point for authorization requests; delegates all authorization decisions to Isolation Service. |
 | **Node Executor** | Workflow Runtime component that requests an Execution Context from Context Manager, materializes a Plugin Instance from the referenced Plugin Type, and executes it within that Execution Context. |
 | **Plugin Instance** | Runtime Object materialized by Node Executor from a Workflow Node's referenced Plugin Type; it executes within its own Execution Context. |
+<!-- Note: The Validation Engine referenced in ADR‑009 is a **build‑time (development‑time)** component that runs during CI/CD and is **not** part of the runtime architecture. This aligns with the Agent‑Assisted Development Model (ADR‑008) which restricts agents and related tooling to development‑time activities. -->
 
 **Execution Context is a logical isolation boundary. The underlying implementation may evolve (e.g., process, thread, container, sandbox) without affecting the contract model.**
 
 ## Decision
 Adopt a **per-plugin instance execution context strategy** where:
 - Node Executor requests an Execution Context from Context Manager before materializing each Plugin Instance.
-- Context Manager validates the request via Isolation Service and provisions the Execution Context.
+- Context Manager delegates the authorization decision to the Isolation Service and provisions the Execution Context upon approval.
 - Node Executor materializes a Plugin Instance from the referenced Plugin Type and executes it within that Execution Context.
 - Contexts are destroyed immediately after Plugin Instance execution completes.
 - A **platform metadata service** (not a shared layer) exposes controlled, read-only access to approved platform metadata through the Plugin Runtime API.

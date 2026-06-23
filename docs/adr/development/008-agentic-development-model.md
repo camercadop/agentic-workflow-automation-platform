@@ -37,7 +37,7 @@ Generated artifacts become part of the platform:
 - Documentation
 
 ## Relationship with Runtime Architecture
-Agents are **explicitly separate** from the runtime architecture defined in ADRs 001–007:
+Agents are **explicitly separate** from the runtime architecture defined in ADRs 001–007. In particular, components such as the **Validation Engine** described in ADR‑009 are **build‑time** services that run during CI/CD and are **not** part of the runtime platform. This reinforces the principle that development agents operate only in development environments and never become runtime components.
 
 | Runtime Component | Development Agent |
 |-------------------|-------------------|
