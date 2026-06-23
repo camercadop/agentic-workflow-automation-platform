@@ -14,11 +14,14 @@ We must balance this standardization with backward compatibility and flexibility
 A Plugin Contract is a versioned architectural specification that defines the boundaries, guarantees, and interaction models between plugins and the platform. It unifies the Registry, Lifecycle, Plugin Runtime API, and Security contracts (from ADR-002, ADR-003, and ADR-004) into a single model that enables the platform to assess compatibility.
 
 ## Plugin Contract Model Decomposition
-The Plugin Contract Model is composed of four constituent contracts, each addressing a distinct interaction concern:
-- **Registry Contract** (ADR-002): Defines how plugins self-describe capabilities and metadata for automatic registration during the build process. This contract is used for registry generation and does not imply runtime scanning or dynamic plugin discovery.
-- **Lifecycle Contract** (ADR-003): Specifies the state machine and hooks governing plugin initialization, activation, and cleanup.
-- **Plugin Runtime API Contract** (ADR-004): Describes shared interaction protocols such as Event Bus, Metadata, Context, and Logging.
-- **Security Contract** (ADR-004): Establishes capability declarations, permissions, isolation levels, and sandbox boundaries for plugin security and resource access.
+The Plugin Contract Model is composed of four constituent contracts, each addressing a distinct interaction concern. The contract decomposition is owned exclusively by this ADR; source ADRs define interfaces and behavior, not contracts.
+
+- **Registry Contract** (sourced from ADR-002): Defines how plugins self-describe capabilities and metadata for automatic registration during the build process. This contract is used for registry generation and does not imply runtime scanning or dynamic plugin discovery.
+- **Lifecycle Contract** (sourced from ADR-003): Specifies the state machine and hooks governing plugin initialization, activation, and cleanup.
+- **Plugin Runtime API Contract** (sourced from ADR-004, Plugin Runtime API Interface — platform services facet): Governs shared interaction protocols such as Event Bus, Metadata, Context, and Logging.
+- **Security Contract** (sourced from ADR-004, Plugin Runtime API Interface — resource access facet): Governs capability declarations, permissions, isolation levels, and sandbox boundaries for plugin security and resource access.
+
+The Plugin Runtime API Contract and Security Contract are two separate contracts projected from the single Plugin Runtime API Interface defined in ADR-004. ADR-004 defines one unified interface; this ADR decomposes it into two contracts to enable independent governance and validation (e.g., separate validation gates in ADR-009). Plugins interact with both concerns through that single interface.
 
 These contracts together form the unified Plugin Contract Model.
 

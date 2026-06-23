@@ -35,8 +35,8 @@ Adopt a sandboxed architecture where plugins:
 1. Run in isolated execution contexts (e.g., separate processes or isolated VMs).
 2. Interact with the system through two distinct interfaces:
    - **Lifecycle Interface**: Used for plugin registration outcomes and lifecycle state transitions (ADRs 002/003).
-   - **Plugin Runtime API Interface**: Used to access platform services (execution context, metadata, logging, metrics, configuration, event bus) and resource access.
-3. Resource access requests submitted through the Plugin Runtime API are validated by the Isolation Service against the active policy model.
+   - **Plugin Runtime API Interface**: Used to access platform services (execution context, metadata, logging, metrics, configuration, event bus) and to submit resource access requests. The Context Manager routes resource access requests to the Isolation Service for policy evaluation.
+3. Resource access requests submitted through the Plugin Runtime API Interface are validated by the Isolation Service against the active policy model.
 4. Cannot reference or modify other plugins’ code/data directly.
 
 ### Permission Validation Boundaries
@@ -68,7 +68,7 @@ Permission validation occurs at both build-time and runtime with distinct respon
 - Test 1: A plugin with capability `read-files` cannot read `/etc/passwd` unless explicitly granted `file:/etc/passwd` permission.
 - Test 2: Plugins cannot modify Core Engine’s internal state (e.g., configuration, hooks).
 - Test 3: Core Engine rejects any plugin attempt to reference another plugin’s class/data.
-- Test 4: Plugins interact only with the Platform public API contract, comprising the Lifecycle Interface (registration and lifecycle transitions) and the Plugin Runtime API Interface (execution context, metadata, logging, metrics, configuration, event bus, and resource access via the Context Manager and Isolation Service).
+- Test 4: Plugins interact only with the Platform public API contract, comprising the Lifecycle Interface (registration and lifecycle transitions) and the Plugin Runtime API Interface (platform services and resource access through the Context Manager and Isolation Service).
 
 ## Clarification
 Plugins do not directly call the Isolation Service.
@@ -82,7 +82,7 @@ The Core Engine remains responsible for orchestration and lifecycle coordination
 
 ## Mandatory Rules
 - **Lifecycle Interface**: Plugins may implement lifecycle hooks for state transitions (Registered, Activated, Active, Deactivated, Cleaned Up).
-- **Plugin Runtime API**: Plugins call platform services and request resource access through this interface; **resource access calls are evaluated for permissions** by the Isolation Service.
+- **Plugin Runtime API Interface**: Plugins call platform services and request resource access through this interface; **resource access calls are evaluated for permissions** by the Isolation Service.
 - **Permissions**: The Isolation Service validates resource access requests through the Plugin Runtime API against policy.
 - **Isolation**: The Core Engine never directly evaluates permissions—only the Isolation Service does.
 - **Authorization Authority**: The Isolation Service is the sole component allowed to grant or deny permissions.

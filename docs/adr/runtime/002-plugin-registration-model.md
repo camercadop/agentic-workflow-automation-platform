@@ -8,7 +8,7 @@
 ## Context
 The platform operates under a strict build-time registration model for plugins:
 - Plugins are produced during development time and validated against architectural contracts (ADR-005).
-- At runtime, plugins exist as pre-compiled components referenced exclusively through the generated plugin registry.
+- At runtime, plugins exist as pre-compiled components referenced through the generated plugin registry. Core‑native plugins (ADR‑001) are the sole exception, as their references are hard‑coded in the Core Engine for infrastructure purposes.
 
 ## Decision
 Adopt a **Build-Time Plugin Registration** approach:
@@ -17,7 +17,7 @@ Adopt a **Build-Time Plugin Registration** approach:
   1. Validate manifests against Plugin Contract Model (ADR-005) using the Validation Engine (ADR-009)
   2. Upon successful validation, the Registry Builder tool compiles the final Static Registry artifact from validated artifacts
   3. Package registry with application
-- At startup, the Core Engine loads the pre-generated registry as the sole source of plugin registration information
+- At startup, the Core Engine loads the pre-generated registry as the primary source of plugin registration information. Core‑native plugins (ADR‑001) are loaded via hard‑coded references and are not part of the generated registry.
 
 ## Consequences
 **Positive**
@@ -37,7 +37,7 @@ Adopt a **Build-Time Plugin Registration** approach:
 ## Validation Criteria
 - Verify that manifests are processed exclusively during build time
 - Verify that no runtime manifest scanning or discovery occurs
-- Verify that the Core Engine loads plugin definitions only from the generated registry
+- Verify that the Core Engine loads plugin definitions only from the generated registry and hard‑coded core‑native plugin references (ADR‑001)
 - Verify that registry generation fails if any manifest validation fails
 - Verify that all validated plugins are correctly included in the generated registry
 
@@ -45,13 +45,14 @@ Adopt a **Build-Time Plugin Registration** approach:
 This model reflects the actual architecture:
 1. **CI/CD**: Manifests are validated against Plugin Contract Model (ADR-005) and platform contracts by the Validation Engine (ADR-009)
 2. **Registry Generation**: The Registry Builder tool compiles the final Static Registry from validated artifacts
-3. **Runtime**: Core Engine loads plugin definitions exclusively from the pre-generated registry
+3. **Runtime**: Core Engine loads plugin definitions from the pre-generated registry and hard‑coded core‑native plugin references (ADR‑001)
 
 This approach maintains core minimalism while providing deterministic configuration and security through build-time validation.
 
 ## Mandatory Rules
-- All plugins must be registered through build‑time manifest processing.
+- All plugins must be registered through build‑time manifest processing, except core‑native plugins as defined in ADR‑001.
 - Only validated plugins may be included in the generated registry.
-- At runtime, the Core Engine must load plugin definitions exclusively from the generated registry.
+- At runtime, the Core Engine must load plugin definitions exclusively from the generated registry and any hard‑coded core‑native plugin references.
+- Hard‑coded plugin references in the Core Engine are permitted only for core‑native plugins (ADR‑001); all other plugins must use the generated registry.
 - Registry generation must fail when any plugin manifest fails validation.
 - Runtime plugin discovery, scanning, and registration are prohibited.
