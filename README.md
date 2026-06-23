@@ -2,7 +2,7 @@
 
 > **Status:** This project is under active development. Features and documentation are evolving rapidly.
 
-> **Note:** This project is currently focused on architecture definition, governance, and implementation planning.
+> **Note:** Phase 1 (Core Engine scaffolding) is in progress.
 > The architecture documentation (ADRs and C4 diagrams) is the authoritative source of truth while implementation is under development.
 
 ## Project Goals
@@ -98,13 +98,47 @@ Clear architectural boundaries separate plugin execution from core governance.
 - **Process**: Full pipeline from requirement to merge
 
 
+## Tech Stack
+- **Language**: Python 3.12+
+- **Web Framework**: FastAPI + Uvicorn
+- **Data Validation**: Pydantic v2
+- **Database**: PostgreSQL
+- **Package Manager**: [uv](https://docs.astral.sh/uv/)
+- **Linter/Formatter**: Ruff
+- **Type Checking**: MyPy (strict mode)
+- **Testing**: Pytest + pytest-cov
+
 ## Project Structure
-- `/docs`: Architectural decisions (ADRs), RFCs, and user guides.
-- `/agents`: Definitions and logic for the autonomous agents.
-- `/skills`: Reusable capabilities (codegen, testing, governance) available to agents.
-- `/prompts`: System messages and templates for LLM orchestration.
-- `/memory`: Persistent context and state snapshots.
-- `/src`: The Core Engine and plugin implementations.
+```
+├── src/
+│   ├── core/          # Core Engine (registry, lifecycle, orchestration)
+│   ├── plugins/       # Plugin implementations
+│   └── api/           # FastAPI application
+├── tests/
+│   ├── unit/          # Unit tests
+│   └── integration/   # Integration tests
+├── docs/
+│   ├── adr/           # Architectural Decision Records
+│   └── architecture/  # C4 diagrams, domain model, vision
+├── pyproject.toml     # Project config, dependencies, tool settings
+└── uv.lock            # Lockfile
+```
+
+## Development Setup
+
+```bash
+# Install dependencies (including dev tools)
+uv sync --extra dev
+
+# Lint
+uv run ruff check src/ tests/
+
+# Type check
+uv run mypy src/
+
+# Run tests
+uv run pytest
+```
 
 ## Agentic Workflow
 Every feature follows this automated lifecycle:
