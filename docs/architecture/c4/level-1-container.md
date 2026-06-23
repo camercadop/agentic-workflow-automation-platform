@@ -10,19 +10,18 @@ flowchart TD
 
         CE["Core Engine
         (Registry Loader,
-        Lifecycle Manager,
-        Workflow Orchestrator)"]
+        Lifecycle Manager)"]
+
+        WR["Workflow Runtime
+        (Node Executor,
+        Routing Engine)"]
 
         PP["Plugin Packages
         (Validated Plugin Artifacts)"]
 
         CM["Context Manager
-        (Authorization Gateway,
-        Context Lifecycle)"]
-
-        RA["Plugin Runtime API
-        (Context, Logging,
-        Metrics, Secrets)"]
+        (Context Lifecycle,
+        Plugin Runtime API)"]
 
         PS["Platform API
         (External Workflow
@@ -41,9 +40,9 @@ flowchart TD
     Arch -->|Defines contracts & governance| PFA
 
     CE -->|Loads registry from| PP
-    CE -->|Initializes| CM
+    CE -->|Orchestrates workflows via| WR
 
-    CM -->|Uses plugin services via| RA
-    RA -->|Validates access through| IS
+    WR -->|Requests Execution Context from| CM
+    CM -->|Delegates authorization to| IS
     IS -->|Mediates access to| EXT
 ```
