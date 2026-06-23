@@ -48,7 +48,7 @@ Per‑Plugin Instance isolation that encapsulates memory, threads, and sandbox s
 ## Isolation Service
 Single authority for authorization decisions. All permission evaluations are performed here, and no other component is allowed to decide on access rights.
 
-## Governance Gates
+## Validation Gates
 Validation steps that prevent non‑compliant artifacts from entering the registry.
 
 ## Governance and Validation Framework (ADR‑009)
@@ -115,6 +115,9 @@ Temporary specialized agent spawned by another agent to complete a bounded task.
 
 ## Test Generator Agent
 Agent that produces unit, integration, and contract tests for generated artifacts.
+
+## Validation Engine
+Build‑time component that executes validation gates and produces validation reports. It is the implementation artifact of the Governance Framework and runs as part of the CI/CD pipeline. The validation reports are used by the Registry Builder tool to compile the final Static Registry artifact.
 
 ## Workflow Runtime
 Component that executes the workflow DAG, respecting dependencies and isolation rules. It is composed of:
