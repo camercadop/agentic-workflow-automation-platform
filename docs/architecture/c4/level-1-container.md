@@ -33,11 +33,21 @@ flowchart TD
 
     end
 
+    subgraph CICD["Build-Time / CI Pipeline"]
+
+        GV["Governance Layer
+        (Validation Engine,
+        Build-Time Gates)"]
+
+    end
+
     EXT["External Systems
     (APIs, Databases, Queues, etc.)"]
 
     Dev -->|Develops plugins & workflows| PFA
-    Arch -->|Defines contracts & governance| PFA
+    Arch -->|Defines contracts & governance| GV
+
+    GV -->|Validates & produces| PP
 
     CE -->|Loads registry from| PP
     CE -->|Orchestrates workflows via| WR
