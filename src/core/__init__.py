@@ -1,6 +1,6 @@
 """Core Engine: plugin contracts, registry, lifecycle, orchestration."""
 
-from src.core.context import ContextManager, ExecutionContext, IsolationService
+from src.core.context import ContextManager, ExecutionContext
 from src.core.contracts import (
     ActionPlugin,
     ConditionPlugin,
@@ -9,6 +9,7 @@ from src.core.contracts import (
     TriggerPlugin,
 )
 from src.core.executor import WorkflowExecutionError, WorkflowExecutor
+from src.core.isolation import IsolationService
 from src.core.manifest import PluginManifest, PluginType, PortSchema
 from src.core.registration import get_collected_plugins, register_plugin
 from src.core.registry import LifecycleError, LifecycleState, PluginRegistry

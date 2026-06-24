@@ -66,9 +66,7 @@ class TestWorkflowExecutor:
         wf = WorkflowDefinition(
             name="single",
             nodes=[
-                WorkflowNode(
-                    node_id="t", plugin_name="test-trigger"
-                ),
+                WorkflowNode(node_id="t", plugin_name="test-trigger"),
             ],
         )
         results = executor.execute(wf)
@@ -80,15 +78,9 @@ class TestWorkflowExecutor:
         wf = WorkflowDefinition(
             name="pipeline",
             nodes=[
-                WorkflowNode(
-                    node_id="t", plugin_name="test-trigger"
-                ),
-                WorkflowNode(
-                    node_id="x", plugin_name="test-transformer"
-                ),
-                WorkflowNode(
-                    node_id="a", plugin_name="test-action"
-                ),
+                WorkflowNode(node_id="t", plugin_name="test-trigger"),
+                WorkflowNode(node_id="x", plugin_name="test-transformer"),
+                WorkflowNode(node_id="a", plugin_name="test-action"),
             ],
             edges=[
                 WorkflowEdge(
@@ -118,9 +110,7 @@ class TestWorkflowExecutor:
         wf = WorkflowDefinition(
             name="fail",
             nodes=[
-                WorkflowNode(
-                    node_id="t", plugin_name="test-trigger"
-                ),
+                WorkflowNode(node_id="t", plugin_name="test-trigger"),
             ],
         )
         with pytest.raises(WorkflowExecutionError, match="not active"):
@@ -132,9 +122,7 @@ class TestWorkflowExecutor:
         wf = WorkflowDefinition(
             name="missing",
             nodes=[
-                WorkflowNode(
-                    node_id="t", plugin_name="nonexistent"
-                ),
+                WorkflowNode(node_id="t", plugin_name="nonexistent"),
             ],
         )
         with pytest.raises(KeyError, match="not found"):
@@ -147,9 +135,7 @@ class TestWorkflowExecutor:
         wf = WorkflowDefinition(
             name="ctx-test",
             nodes=[
-                WorkflowNode(
-                    node_id="t", plugin_name="test-trigger"
-                ),
+                WorkflowNode(node_id="t", plugin_name="test-trigger"),
             ],
         )
         executor.execute(wf)

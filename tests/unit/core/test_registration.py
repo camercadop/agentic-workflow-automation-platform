@@ -1,10 +1,13 @@
 from typing import Any
 
 import pytest
-
 from src.core.contracts import ActionPlugin, TriggerPlugin
 from src.core.manifest import PluginManifest, PluginType
-from src.core.registration import clear_collected, get_collected_plugins, register_plugin
+from src.core.registration import (
+    clear_collected,
+    get_collected_plugins,
+    register_plugin,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -20,7 +23,9 @@ class TestRegisterPlugin:
         class MyAction(ActionPlugin):
             @property
             def manifest(self) -> PluginManifest:
-                return PluginManifest(name="my-action", version="1.0.0", plugin_type=PluginType.ACTION)
+                return PluginManifest(
+                    name="my-action", version="1.0.0", plugin_type=PluginType.ACTION
+                )
 
             def execute(self, data: dict[str, Any]) -> dict[str, Any]:
                 return data
@@ -34,7 +39,9 @@ class TestRegisterPlugin:
         class First(ActionPlugin):
             @property
             def manifest(self) -> PluginManifest:
-                return PluginManifest(name="dup", version="1.0.0", plugin_type=PluginType.ACTION)
+                return PluginManifest(
+                    name="dup", version="1.0.0", plugin_type=PluginType.ACTION
+                )
 
             def execute(self, data: dict[str, Any]) -> dict[str, Any]:
                 return data
@@ -45,7 +52,9 @@ class TestRegisterPlugin:
             class Second(ActionPlugin):
                 @property
                 def manifest(self) -> PluginManifest:
-                    return PluginManifest(name="dup", version="1.0.0", plugin_type=PluginType.ACTION)
+                    return PluginManifest(
+                        name="dup", version="1.0.0", plugin_type=PluginType.ACTION
+                    )
 
                 def execute(self, data: dict[str, Any]) -> dict[str, Any]:
                     return data
@@ -55,7 +64,9 @@ class TestRegisterPlugin:
         class AsAction(ActionPlugin):
             @property
             def manifest(self) -> PluginManifest:
-                return PluginManifest(name="multi", version="1.0.0", plugin_type=PluginType.ACTION)
+                return PluginManifest(
+                    name="multi", version="1.0.0", plugin_type=PluginType.ACTION
+                )
 
             def execute(self, data: dict[str, Any]) -> dict[str, Any]:
                 return data
@@ -64,7 +75,9 @@ class TestRegisterPlugin:
         class AsTrigger(TriggerPlugin):
             @property
             def manifest(self) -> PluginManifest:
-                return PluginManifest(name="multi", version="1.0.0", plugin_type=PluginType.TRIGGER)
+                return PluginManifest(
+                    name="multi", version="1.0.0", plugin_type=PluginType.TRIGGER
+                )
 
             def check(self) -> dict[str, Any]:
                 return {}
@@ -82,7 +95,9 @@ class TestRegisterPlugin:
         class Temp(ActionPlugin):
             @property
             def manifest(self) -> PluginManifest:
-                return PluginManifest(name="temp", version="1.0.0", plugin_type=PluginType.ACTION)
+                return PluginManifest(
+                    name="temp", version="1.0.0", plugin_type=PluginType.ACTION
+                )
 
             def execute(self, data: dict[str, Any]) -> dict[str, Any]:
                 return data
