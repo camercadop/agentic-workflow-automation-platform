@@ -5,7 +5,6 @@ from src.core.context import (
     ContextManager,
     DefaultIsolationService,
     ExecutionContext,
-    IsolationService,
 )
 from src.core.manifest import PluginManifest, PluginType
 

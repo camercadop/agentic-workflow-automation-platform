@@ -8,17 +8,10 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Protocol
+from typing import Any
 
+from src.core.isolation import IsolationService, PolicyIsolationService
 from src.core.manifest import PluginManifest
-
-
-class IsolationService(Protocol):
-    """Authorization authority for execution context provisioning (ADR-004)."""
-
-    def authorize(self, manifest: PluginManifest, resources: list[str]) -> bool:
-        """Evaluate whether the plugin is allowed the requested resources."""
-        ...
 
 
 class DefaultIsolationService:
@@ -65,7 +58,7 @@ class ContextManager:
 
     def __init__(self, isolation_service: IsolationService | None = None) -> None:
         self._isolation_service: IsolationService = (
-            isolation_service or DefaultIsolationService()
+            isolation_service or PolicyIsolationService()
         )
         self._active_contexts: dict[str, ExecutionContext] = {}
 
