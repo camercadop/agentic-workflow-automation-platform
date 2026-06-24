@@ -3,9 +3,9 @@
 
 def test_project_imports() -> None:
     """Verify core packages are importable."""
+    import src.api
     import src.core
     import src.plugins
-    import src.api
 
     assert src.core is not None
     assert src.plugins is not None
