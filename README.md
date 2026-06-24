@@ -158,6 +158,9 @@ flowchart TD
 - **C4 Level 0 – System Context**: [`level-0-system-context.md`](docs/architecture/c4/level-0-system-context.md)
 - **C4 Level 1 – Container Diagram**: [`level-1-container.md`](docs/architecture/c4/level-1-container.md)
 - **Glossary**: [`GLOSSARY.md`](GLOSSARY.md) – key terminology and definitions
+- **Developer Guide**: [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) – module usage and architecture constraints
+- **Testing Guide**: [`docs/TESTING.md`](docs/TESTING.md) – testing conventions, structure, and examples
+- **Contributing**: [`CONTRIBUTING.md`](CONTRIBUTING.md) – coding standards and contribution rules
 
 ## License
 This project is released under the [Apache License, Version 2.0](LICENSE).
