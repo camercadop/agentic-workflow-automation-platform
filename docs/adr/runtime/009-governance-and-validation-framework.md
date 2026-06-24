@@ -25,7 +25,8 @@
 
 ### Validation Gates
 1. **Manifest Validation Gate**
-   - Manifest schema validation
+   - Applies to all declaration mechanisms (manifests and inline annotations)
+   - Declaration schema validation
    - Metadata completeness (name, version, type)
    - Field format validation
 

@@ -10,6 +10,7 @@ from src.core.contracts import (
 )
 from src.core.executor import WorkflowExecutionError, WorkflowExecutor
 from src.core.manifest import PluginManifest, PluginType, PortSchema
+from src.core.registration import get_collected_plugins, register_plugin
 from src.core.registry import LifecycleError, LifecycleState, PluginRegistry
 from src.core.workflow import WorkflowDefinition, WorkflowEdge, WorkflowNode
 
@@ -25,6 +26,8 @@ __all__ = [
     "PluginManifest",
     "PluginType",
     "PluginRegistry",
+    "get_collected_plugins",
+    "register_plugin",
     "PortSchema",
     "TransformerPlugin",
     "TriggerPlugin",

@@ -11,6 +11,7 @@
 |--------|----------------|-----|
 | `manifest.py` | Plugin metadata model (name, type, ports, permissions) | ADR-002, ADR-005 |
 | `contracts.py` | Abstract plugin interfaces (`TriggerPlugin`, `ConditionPlugin`, `TransformerPlugin`, `ActionPlugin`) | ADR-003, ADR-005 |
+| `registration.py` | Decorator-based plugin collection for build-time registry generation | ADR-002 |
 | `registry.py` | Static plugin registry and lifecycle state machine | ADR-002, ADR-003 |
 | `context.py` | Per-execution isolation boundary and context provisioning | ADR-004, ADR-006 |
 | `workflow.py` | DAG definition model with built-in validation | ADR-007 |
@@ -62,7 +63,21 @@ Lifecycle hooks are optional — override only when needed:
 
 ### 2. Registering Plugins and Managing Lifecycle
 
-Plugins are registered at startup (no runtime discovery). The registry enforces a strict sequential lifecycle:
+Plugins are declared using the `@register_plugin` decorator and collected at build time (no runtime discovery):
+
+```python
+from src.core.registration import register_plugin
+from src.core.contracts import ActionPlugin
+
+
+@register_plugin
+class EmailSender(ActionPlugin):
+    ...
+```
+
+The Registry Builder imports plugin modules, calls `get_collected_plugins()`, validates each against the governance gates, and produces the static registry artifact.
+
+At startup, the registry enforces a strict sequential lifecycle:
 
 ```
 Registered → Activated → Active → Deactivated → CleanedUp

@@ -88,7 +88,7 @@ Clear architectural boundaries separate plugin execution from core governance.
 
 ## Plugin Architecture
 - **Contract-First**: Plugins are developed to conform to the standardized contracts defined by the Plugin Contract Model (ADR-005), without reference to specific implementation classes.
-- **Metadata-Driven**: Plugins declare metadata through standardized manifests (see ADR-002).
+- **Metadata-Driven**: Plugins declare metadata through standardized manifests or inline `@register_plugin` annotations (see ADR-002).
 - **Build-Time Registration**: Plugins are validated during CI/CD, generating a static registry. No runtime discovery is performed.
 - **Isolation & Validation**: Plugins execute in isolated contexts with contract validation; failures are reported during validation (ADR-004).
 
