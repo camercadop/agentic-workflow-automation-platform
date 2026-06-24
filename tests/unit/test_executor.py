@@ -18,7 +18,6 @@ class _Trigger(TriggerPlugin):
             name="test-trigger",
             version="1.0.0",
             plugin_type=PluginType.TRIGGER,
-            contract_version="1.0.0",
         )
 
     def check(self) -> dict[str, Any]:
@@ -32,7 +31,6 @@ class _Transformer(TransformerPlugin):
             name="test-transformer",
             version="1.0.0",
             plugin_type=PluginType.TRANSFORMER,
-            contract_version="1.0.0",
         )
 
     def transform(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -46,7 +44,6 @@ class _Action(ActionPlugin):
             name="test-action",
             version="1.0.0",
             plugin_type=PluginType.ACTION,
-            contract_version="1.0.0",
         )
 
     def execute(self, data: dict[str, Any]) -> dict[str, Any]:

@@ -16,10 +16,10 @@ A Plugin Contract is a versioned architectural specification that defines the bo
 ## Plugin Contract Model Decomposition
 The Plugin Contract Model is composed of four constituent contracts, each addressing a distinct interaction concern. The contract decomposition is owned exclusively by this ADR; source ADRs define interfaces and behavior, not contracts.
 
-- **Registry Contract** (sourced from ADR-002): Defines how plugins self-describe capabilities and metadata for automatic registration during the build process. This contract is used for registry generation and does not imply runtime scanning or dynamic plugin discovery.
+- **Registry Contract** (sourced from ADR-002): Defines how plugins self-describe metadata for automatic registration during the build process. This contract is used for registry generation and does not imply runtime scanning or dynamic plugin discovery.
 - **Lifecycle Contract** (sourced from ADR-003): Specifies the state machine and hooks governing plugin initialization, activation, and cleanup.
 - **Plugin Runtime API Contract** (sourced from ADR-004, Plugin Runtime API Interface — platform services facet): Governs shared interaction protocols such as Event Bus, Metadata, Context, and Logging.
-- **Security Contract** (sourced from ADR-004, Plugin Runtime API Interface — resource access facet): Governs capability declarations, permissions, isolation levels, and sandbox boundaries for plugin security and resource access.
+- **Security Contract** (sourced from ADR-004, Plugin Runtime API Interface — resource access facet): Governs permissions, isolation levels, and sandbox boundaries for plugin security and resource access.
 
 The Plugin Runtime API Contract and Security Contract are two separate contracts projected from the single Plugin Runtime API Interface defined in ADR-004. ADR-004 defines one unified interface; this ADR decomposes it into two contracts to enable independent governance and validation (e.g., separate validation gates in ADR-009). Plugins interact with both concerns through that single interface.
 
@@ -28,7 +28,7 @@ These contracts together form the unified Plugin Contract Model.
 ## Decision
 We will standardize the Plugin Contract as an architectural boundary specification that unifies the interaction models and boundaries defined in ADR-002, ADR-003, and ADR-004. Rather than defining concrete method signatures, we establish:
 
-- **Interaction boundaries** as first-class architectural concepts, expressed through capability declarations and sandbox definitions from ADR-004 (Security Contract) and lifecycle hooks from ADR-003 (Lifecycle Contract)
+- **Interaction boundaries** as first-class architectural concepts, expressed through sandbox definitions from ADR-004 (Security Contract) and lifecycle hooks from ADR-003 (Lifecycle Contract)
 - **Configuration and metadata schemas** as part of the boundary contract
 - **Plugin Runtime API usage patterns** (Event Bus, Metadata, Context, Logging) as shared interaction protocols (Plugin Runtime API Contract)
 - **Versioning and compatibility rules** governing boundary evolution
@@ -40,7 +40,7 @@ This approach emphasizes defining clear architectural contracts for how plugins 
 - Unifies Registry Contract (ADR-002), Lifecycle (ADR-003), Plugin Runtime API (ADR-004), and Security (ADR-004) contracts into a single versioned contract
 - Clear compatibility boundaries for plugin updates and platform evolution
 - Reduced integration testing effort through standardized contracts
-- Plugin compatibility is determined against the Plugin Contract Model version rather than implementation details
+- Plugin compatibility is determined against the Plugin Contract Model rather than implementation details
 
 **Negative**
 - Initial development overhead to define and document the unified contract
@@ -70,16 +70,14 @@ The trade-off is the initial effort required to define and implement these contr
   - Adhering to Registry Contract standards (ADR-002)
   - Adhering to Security standards (ADR-004)
   - Following Plugin Runtime API usage patterns (Event Bus, Metadata, Context, Logging)
-  - Observing versioning and compatibility rules
-- The Plugin Contract Model version is independent of individual plugin release versions. It represents only platform contract compatibility and is governed by semantic versioning.
-- Breaking changes to the Plugin Contract Model require a major version bump
+- Breaking changes to the Plugin Contract Model require a new ADR revision
 
 ## Allowed Changes
-- Adding new optional capabilities or interaction patterns to the Plugin Contract Model (with minor version bump)
+- Adding new optional interaction patterns to the Plugin Contract Model
 - Refining schema definitions or metadata structures without altering existing contract semantics
 - Updating versioning or compatibility rules in a backward‑compatible manner
 
 ## Forbidden Changes
-- Removing or fundamentally altering any defined interaction boundary, capability, or versioning rule without a deprecation period
+- Removing or fundamentally altering any defined interaction boundary or versioning rule without a deprecation period
 - Changing the major version semantics in a way that breaks existing plugin compatibility
 - Introducing breaking modifications to the Plugin Contract Model without appropriate migration guidance

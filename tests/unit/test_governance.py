@@ -24,8 +24,6 @@ class ValidAction(ActionPlugin):
             name="valid-action",
             version="1.0.0",
             plugin_type=PluginType.ACTION,
-            contract_version="1.0.0",
-            capabilities=["do-stuff"],
             permissions=["network:example.com"],
             inputs=[PortSchema(name="payload", data_type="dict")],
             outputs=[PortSchema(name="result", data_type="dict")],
@@ -42,7 +40,6 @@ class ValidTrigger(TriggerPlugin):
             name="valid-trigger",
             version="2.0.0",
             plugin_type=PluginType.TRIGGER,
-            contract_version="1.0.0",
             outputs=[PortSchema(name="payload", data_type="dict")],
         )
 
@@ -57,7 +54,6 @@ class BadVersionPlugin(ActionPlugin):
             name="bad-version",
             version="not-semver",
             plugin_type=PluginType.ACTION,
-            contract_version="1.0.0",
         )
 
     def execute(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -73,24 +69,9 @@ class WrongContractPlugin(TriggerPlugin):
             name="wrong-contract",
             version="1.0.0",
             plugin_type=PluginType.CONDITION,
-            contract_version="1.0.0",
         )
 
     def check(self) -> dict[str, Any]:
-        return {}
-
-
-class UnsupportedContractVersion(ActionPlugin):
-    @property
-    def manifest(self) -> PluginManifest:
-        return PluginManifest(
-            name="old-contract",
-            version="1.0.0",
-            plugin_type=PluginType.ACTION,
-            contract_version="0.1.0",
-        )
-
-    def execute(self, data: dict[str, Any]) -> dict[str, Any]:
         return {}
 
 
@@ -101,7 +82,6 @@ class BadPermissionsPlugin(ActionPlugin):
             name="bad-perms",
             version="1.0.0",
             plugin_type=PluginType.ACTION,
-            contract_version="1.0.0",
             permissions=["no-colon", "network:x", "network:x"],
         )
 
@@ -116,7 +96,6 @@ class BadResourcePlugin(ActionPlugin):
             name="bad-resources",
             version="1.0.0",
             plugin_type=PluginType.ACTION,
-            contract_version="1.0.0",
             metadata={
                 "resource_requirements": {
                     "max_memory_mb": -10,
@@ -143,24 +122,6 @@ class TestManifestValidationGate:
         errors = self.gate.validate_plugin(BadVersionPlugin())
         assert any("semver" in e for e in errors)
 
-    def test_blank_capability_fails(self) -> None:
-        class BlankCap(ActionPlugin):
-            @property
-            def manifest(self) -> PluginManifest:
-                return PluginManifest(
-                    name="blank-cap",
-                    version="1.0.0",
-                    plugin_type=PluginType.ACTION,
-                    contract_version="1.0.0",
-                    capabilities=["valid", "  "],
-                )
-
-            def execute(self, data: dict[str, Any]) -> dict[str, Any]:
-                return {}
-
-        errors = self.gate.validate_plugin(BlankCap())
-        assert any("blank" in e.lower() for e in errors)
-
 
 # --- Contract Validation Gate ---
 
@@ -175,10 +136,6 @@ class TestContractValidationGate:
     def test_wrong_contract_type_fails(self) -> None:
         errors = self.gate.validate_plugin(WrongContractPlugin())
         assert any("subclass" in e.lower() for e in errors)
-
-    def test_unsupported_contract_version_fails(self) -> None:
-        errors = self.gate.validate_plugin(UnsupportedContractVersion())
-        assert any("unsupported" in e.lower() for e in errors)
 
 
 # --- Security Validation Gate ---
@@ -224,7 +181,6 @@ class TestExecutionContextValidationGate:
                     name="good-res",
                     version="1.0.0",
                     plugin_type=PluginType.ACTION,
-                    contract_version="1.0.0",
                     metadata={
                         "resource_requirements": {
                             "max_memory_mb": 512,

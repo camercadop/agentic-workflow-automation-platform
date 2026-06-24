@@ -12,7 +12,7 @@ The platform operates under a strict build-time registration model for plugins:
 
 ## Decision
 Adopt a **Build-Time Plugin Registration** approach:
-- Plugins declare metadata, capabilities, and contract information through standardized manifests
+- Plugins declare metadata and contract information through standardized manifests
 - During CI/CD pipeline:
   1. Validate manifests against Plugin Contract Model (ADR-005) using the Validation Engine (ADR-009)
   2. Upon successful validation, the Registry Builder tool compiles the final Static Registry artifact from validated artifacts

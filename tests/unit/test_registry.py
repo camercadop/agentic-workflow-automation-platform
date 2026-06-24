@@ -27,7 +27,6 @@ class _StubAction(ActionPlugin):
             name=self._name,
             version="1.0.0",
             plugin_type=PluginType.ACTION,
-            contract_version="1.0.0",
         )
 
     def on_activate(self) -> None:

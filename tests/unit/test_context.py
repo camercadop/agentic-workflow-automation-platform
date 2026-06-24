@@ -15,7 +15,6 @@ def _make_manifest(name: str = "test-plugin") -> PluginManifest:
         name=name,
         version="1.0.0",
         plugin_type=PluginType.ACTION,
-        contract_version="1.0.0",
         permissions=["file:/tmp/data"],
     )
 

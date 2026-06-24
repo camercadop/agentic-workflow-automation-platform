@@ -22,9 +22,6 @@ if TYPE_CHECKING:
     from src.core.contracts import PluginBase
     from src.core.workflow import WorkflowDefinition
 
-# Supported contract versions
-SUPPORTED_CONTRACT_VERSIONS = {"1.0.0"}
-
 # Semver pattern
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -69,19 +66,8 @@ class ManifestValidationGate(ValidationGate):
                 f"Manifest 'version' must be semver (got '{manifest.version}')."
             )
 
-        if not _SEMVER_RE.match(manifest.contract_version):
-            errors.append(
-                f"Manifest 'contract_version' must be semver "
-                f"(got '{manifest.contract_version}')."
-            )
-
         if not manifest.plugin_type:
             errors.append("Manifest 'plugin_type' is required.")
-
-        # Capabilities must be non-empty strings
-        for i, cap in enumerate(manifest.capabilities):
-            if not cap.strip():
-                errors.append(f"Capability at index {i} must not be blank.")
 
         return errors
 
@@ -96,13 +82,6 @@ class ContractValidationGate(ValidationGate):
     def validate_plugin(self, plugin: PluginBase) -> list[str]:
         errors: list[str] = []
         manifest = plugin.manifest
-
-        # Contract version must be supported
-        if manifest.contract_version not in SUPPORTED_CONTRACT_VERSIONS:
-            errors.append(
-                f"Unsupported contract_version '{manifest.contract_version}'. "
-                f"Supported: {sorted(SUPPORTED_CONTRACT_VERSIONS)}."
-            )
 
         # Plugin must subclass the correct contract type
         expected_cls = _TYPE_CONTRACT_MAP.get(manifest.plugin_type)

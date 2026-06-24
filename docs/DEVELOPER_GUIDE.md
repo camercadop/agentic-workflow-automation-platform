@@ -37,8 +37,6 @@ class EmailSender(ActionPlugin):
             name="email-sender",
             version="1.0.0",
             plugin_type=PluginType.ACTION,
-            contract_version="1.0.0",
-            capabilities=["send-email"],
             permissions=["network:smtp.example.com"],
             inputs=[PortSchema(name="payload", data_type="dict")],
             outputs=[PortSchema(name="result", data_type="dict")],

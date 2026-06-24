@@ -26,18 +26,18 @@
 ### Validation Gates
 1. **Manifest Validation Gate**
    - Manifest schema validation
-   - Metadata completeness (ID, version, type)
-   - Capability declaration validation
+   - Metadata completeness (name, version, type)
+   - Field format validation
 
 2. **Contract Validation Gate**
    - Compliance with Plugin Contract Model (ADR-005)
-   - Contract version compatibility
+   - Plugin type conformance (declared type matches contract interface)
    - Lifecycle state transition validation (ADR-003)
    - Plugin Runtime API signature compliance
 
 3. **Security Validation Gate**
-   - Declaration validation: Manifest capability-permission alignment
-   - Initial permission set validation: Ensuring well-formedness and non-conflicting rights
+   - Permission format validation: Ensuring well-formedness and non-conflicting rights
+   - Duplicate permission detection
    - Plugin package validation: Ensuring compliance with the Plugin Isolation Model (ADR-004) enforcement requirements
 
 4. **Execution Context Validation Gate**
@@ -92,8 +92,8 @@ To prevent architectural drift in a decentralized plugin model, we need a centra
 - Validation gates cannot be bypassed under any circumstances.
 
 ## Allowed Changes
-- Updates to validation logic to support new plugin types or capabilities.
-- Refinement of validation schemas (e.g., manifest version updates).
+- Updates to validation logic to support new plugin types.
+- Refinement of validation schemas (e.g., manifest field updates).
 - Performance optimizations of gate implementations.
 
 ## Forbidden Changes

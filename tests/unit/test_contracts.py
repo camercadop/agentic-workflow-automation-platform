@@ -49,7 +49,6 @@ class TestConcretePlugin:
                     name="my-trigger",
                     version="1.0.0",
                     plugin_type=PluginType.TRIGGER,
-                    contract_version="1.0.0",
                 )
 
             def check(self) -> dict[str, Any]:
@@ -67,7 +66,6 @@ class TestConcretePlugin:
                     name="my-condition",
                     version="1.0.0",
                     plugin_type=PluginType.CONDITION,
-                    contract_version="1.0.0",
                 )
 
             def evaluate(self, data: dict[str, Any]) -> bool:
@@ -85,7 +83,6 @@ class TestConcretePlugin:
                     name="my-transformer",
                     version="1.0.0",
                     plugin_type=PluginType.TRANSFORMER,
-                    contract_version="1.0.0",
                 )
 
             def transform(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -102,7 +99,6 @@ class TestConcretePlugin:
                     name="my-action",
                     version="1.0.0",
                     plugin_type=PluginType.ACTION,
-                    contract_version="1.0.0",
                 )
 
             def execute(self, data: dict[str, Any]) -> dict[str, Any]:
@@ -120,8 +116,6 @@ class TestPluginManifest:
             name="test-plugin",
             version="1.0.0",
             plugin_type=PluginType.ACTION,
-            contract_version="1.0.0",
-            capabilities=["send-email"],
             inputs=[PortSchema(name="payload", data_type="dict")],
             outputs=[PortSchema(name="result", data_type="dict")],
         )
@@ -135,7 +129,6 @@ class TestPluginManifest:
                 name="",
                 version="1.0.0",
                 plugin_type=PluginType.ACTION,
-                contract_version="1.0.0",
             )
 
     def test_missing_required_fields(self) -> None:
@@ -148,5 +141,4 @@ class TestPluginManifest:
                 name="test",
                 version="1.0.0",
                 plugin_type="invalid",  # type: ignore[arg-type]
-                contract_version="1.0.0",
             )

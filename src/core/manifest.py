@@ -46,14 +46,6 @@ class PluginManifest(BaseModel):
     plugin_type: PluginType = Field(
         description="Classification of the plugin's role in a workflow.",
     )
-    contract_version: str = Field(
-        min_length=1,
-        description="Plugin Contract Model version this plugin targets.",
-    )
-    capabilities: list[str] = Field(
-        default_factory=list,
-        description="Functional capabilities the plugin provides.",
-    )
     permissions: list[str] = Field(
         default_factory=list,
         description="Resource permissions the plugin requires.",
