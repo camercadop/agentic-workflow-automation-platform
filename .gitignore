@@ -21,3 +21,26 @@ htmlcov/
 
 # OS
 .DS_Store
+
+# Database
+test.db
+*.db
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Migration artifacts
+migrations/__pycache__/
+migrations/*.json
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Cache
+.cache/

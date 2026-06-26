@@ -1,9 +1,8 @@
 # agentic-workflow-automation-platform
 
-> **Status:** This project is under active development. Features and documentation are evolving rapidly.
-
-> **Note:** Phase 1 (Core Engine scaffolding) is in progress.
-> The architecture documentation (ADRs and C4 diagrams) is the authoritative source of truth while implementation is under development.
+> **Status:** Phase 1 (Core Engine) complete. Phase 2 (Persistence) **in progress**.
+>
+> The architecture documentation (ADRs and C4 diagrams) remains the authoritative source of truth.
 
 ## Project Goals
 ### Product Goal
@@ -139,6 +138,24 @@ uv run mypy src/
 # Run tests
 uv run pytest
 ```
+
+## Docker
+
+```bash
+# Start all services (API + PostgreSQL)
+docker compose up --build
+
+# Run in detached mode
+docker compose up --build -d
+
+# Stop services
+docker compose down
+
+# Stop and remove volumes
+docker compose down -v
+```
+
+The API is available at `http://localhost:8000` and PostgreSQL at `localhost:5432`.
 
 ## Agentic Workflow
 Every feature follows this automated lifecycle:
