@@ -1,5 +1,6 @@
 """Generic CRUD repository implementation."""
 
+import uuid
 from types import get_original_bases
 from typing import get_args
 
@@ -28,7 +29,7 @@ class CrudRepository[T](BaseRepository[T]):
                 self._model = args[0]
                 break
 
-    def get(self, entity_id: str) -> T | None:
+    def get(self, entity_id: uuid.UUID) -> T | None:
         return self.session.get(self._model, entity_id)
 
     def list(self) -> list[T]:
@@ -50,7 +51,7 @@ class CrudRepository[T](BaseRepository[T]):
 
         return merged
 
-    def delete(self, entity_id: str) -> None:
+    def delete(self, entity_id: uuid.UUID) -> None:
         """Delete entity by ID. Raises if not found."""
         entity = self.session.get(self._model, entity_id)
         if entity is None:

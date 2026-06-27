@@ -1,5 +1,6 @@
 """Base repository class for database operations."""
 
+import uuid
 from abc import ABC, abstractmethod
 
 from sqlalchemy.orm import Session
@@ -16,7 +17,7 @@ class BaseRepository[T](ABC):
         self.session = session
 
     @abstractmethod
-    def get(self, entity_id: str) -> T | None: ...
+    def get(self, entity_id: uuid.UUID) -> T | None: ...
 
     @abstractmethod
     def list(self) -> list[T]: ...
@@ -28,4 +29,4 @@ class BaseRepository[T](ABC):
     def update(self, entity: T) -> T: ...
 
     @abstractmethod
-    def delete(self, entity_id: str) -> None: ...
+    def delete(self, entity_id: uuid.UUID) -> None: ...

@@ -30,7 +30,7 @@ def list_executions(repo: RepoDep) -> list[WorkflowExecution]:
 
 @router.get("/{execution_id}", response_model=ExecutionResponse)
 def get_execution(execution_id: uuid.UUID, repo: RepoDep) -> WorkflowExecution:
-    execution = repo.get(str(execution_id))
+    execution = repo.get(execution_id)
     if execution is None:
         raise HTTPException(status_code=404, detail="Execution not found")
     return execution

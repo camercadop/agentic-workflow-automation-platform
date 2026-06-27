@@ -28,7 +28,7 @@ def list_plugins(repo: RepoDep) -> list[Plugin]:
 
 @router.get("/{plugin_id}", response_model=PluginResponse)
 def get_plugin(plugin_id: uuid.UUID, repo: RepoDep) -> Plugin:
-    plugin = repo.get(str(plugin_id))
+    plugin = repo.get(plugin_id)
     if plugin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
     return plugin
