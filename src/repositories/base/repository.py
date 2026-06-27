@@ -23,3 +23,9 @@ class BaseRepository[T](ABC):
 
     @abstractmethod
     def create(self, entity: T) -> T: ...
+
+    @abstractmethod
+    def update(self, entity: T) -> T: ...
+
+    @abstractmethod
+    def delete(self, entity_id: str) -> None: ...

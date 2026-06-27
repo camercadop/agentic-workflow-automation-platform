@@ -41,3 +41,19 @@ class CrudRepository[T](BaseRepository[T]):
         self.session.refresh(entity)
 
         return entity
+
+    def update(self, entity: T) -> T:
+        """Merge, commit, and refresh the entity."""
+        merged = self.session.merge(entity)
+        self.session.commit()
+        self.session.refresh(merged)
+
+        return merged
+
+    def delete(self, entity_id: str) -> None:
+        """Delete entity by ID. Raises if not found."""
+        entity = self.session.get(self._model, entity_id)
+        if entity is None:
+            raise ValueError(f"{self._model.__name__} with id '{entity_id}' not found.")
+        self.session.delete(entity)
+        self.session.commit()
