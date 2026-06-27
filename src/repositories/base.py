@@ -1,11 +1,8 @@
 """Base repository class for database operations."""
 
 from abc import ABC, abstractmethod
-from typing import TypeVar
 
 from sqlalchemy.orm import Session
-
-T = TypeVar("T")
 
 
 class BaseRepository[T](ABC):

@@ -1,6 +1,5 @@
-version: "3.9"
-
 services:
+  # PostgreSQL database
   db:
     image: postgres:16-alpine
     environment:
@@ -12,12 +11,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # FastAPI backend API service
   api:
     build: .
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/workflow_db
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/workflow_db
     depends_on:
       - db
 
