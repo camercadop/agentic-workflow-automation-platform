@@ -10,15 +10,21 @@ from src.models.execution import ExecutionStatus
 
 
 class ExecutionCreate(BaseModel):
+    """Request schema for creating workflow executions."""
+
     workflow_id: str = Field(min_length=1)
     context: dict[str, Any] = Field(default_factory=dict)
 
 
 class ExecutionUpdate(BaseModel):
+    """Request schema for updating execution status."""
+
     status: ExecutionStatus
 
 
 class ExecutionResponse(BaseModel):
+    """Response schema for workflow executions."""
+
     id: uuid.UUID
     workflow_id: str
     status: ExecutionStatus
