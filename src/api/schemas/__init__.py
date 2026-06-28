@@ -6,6 +6,13 @@ from src.api.schemas.executions import (
     ExecutionUpdate,
 )
 from src.api.schemas.plugins import PluginCreate, PluginResponse, PluginUpdate
+from src.api.schemas.workflows import (
+    WorkflowCreate,
+    WorkflowExecuteRequest,
+    WorkflowExecuteResponse,
+    WorkflowResponse,
+    WorkflowUpdate,
+)
 
 __all__ = [
     "ExecutionCreate",
@@ -14,4 +21,9 @@ __all__ = [
     "PluginCreate",
     "PluginResponse",
     "PluginUpdate",
+    "WorkflowCreate",
+    "WorkflowExecuteRequest",
+    "WorkflowExecuteResponse",
+    "WorkflowResponse",
+    "WorkflowUpdate",
 ]

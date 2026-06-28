@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from starlette import status
 
 from src.api.errors import ErrorCode, ErrorDetail
-from src.api.routes import executions, plugins
+from src.api.routes import executions, plugins, workflows
 
 app = FastAPI(
     title="Agentic Workflow Automation Platform",
@@ -16,6 +16,7 @@ app = FastAPI(
 
 app.include_router(plugins.router)
 app.include_router(executions.router)
+app.include_router(workflows.router)
 
 
 @app.exception_handler(IntegrityError)
