@@ -12,6 +12,7 @@ class ComparisonCondition(ConditionPlugin):
     """Base class for conditions that compare a key's value against a target."""
 
     def __init__(self, key: str = "", value: Any = None) -> None:
+        """Initialize with comparison key and target value."""
         self._key = key
         self._value = value
 
@@ -20,6 +21,7 @@ class ComparisonCondition(ConditionPlugin):
         """Perform the comparison."""
 
     def evaluate(self, data: dict[str, Any]) -> bool:
+        """Evaluate the condition against the data."""
         return self.compare(data.get(self._key), self._value)
 
 
@@ -29,6 +31,7 @@ class GreaterThan(ComparisonCondition):
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="greater-than-condition",
             version="1.0.0",
@@ -37,6 +40,7 @@ class GreaterThan(ComparisonCondition):
         )
 
     def compare(self, actual: Any, expected: Any) -> bool:
+        """Return True if actual > expected."""
         return bool(actual > expected)
 
 
@@ -46,6 +50,7 @@ class LessThan(ComparisonCondition):
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="less-than-condition",
             version="1.0.0",
@@ -54,6 +59,7 @@ class LessThan(ComparisonCondition):
         )
 
     def compare(self, actual: Any, expected: Any) -> bool:
+        """Return True if actual < expected."""
         return bool(actual < expected)
 
 
@@ -63,6 +69,7 @@ class Equal(ComparisonCondition):
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="equal-condition",
             version="1.0.0",
@@ -71,6 +78,7 @@ class Equal(ComparisonCondition):
         )
 
     def compare(self, actual: Any, expected: Any) -> bool:
+        """Return True if actual == expected."""
         return bool(actual == expected)
 
 
@@ -80,6 +88,7 @@ class NotEqual(ComparisonCondition):
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="not-equal-condition",
             version="1.0.0",
@@ -88,6 +97,7 @@ class NotEqual(ComparisonCondition):
         )
 
     def compare(self, actual: Any, expected: Any) -> bool:
+        """Return True if actual != expected."""
         return bool(actual != expected)
 
 
@@ -97,6 +107,7 @@ class GreaterOrEqualThan(ComparisonCondition):
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="greater-or-equal-than-condition",
             version="1.0.0",
@@ -105,6 +116,7 @@ class GreaterOrEqualThan(ComparisonCondition):
         )
 
     def compare(self, actual: Any, expected: Any) -> bool:
+        """Return True if actual >= expected."""
         return bool(actual >= expected)
 
 
@@ -114,6 +126,7 @@ class LessOrEqualThan(ComparisonCondition):
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="less-or-equal-than-condition",
             version="1.0.0",
@@ -122,4 +135,5 @@ class LessOrEqualThan(ComparisonCondition):
         )
 
     def compare(self, actual: Any, expected: Any) -> bool:
+        """Return True if actual <= expected."""
         return bool(actual <= expected)

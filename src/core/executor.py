@@ -49,6 +49,7 @@ class WorkflowExecutor:
         registry: PluginRegistry,
         context_manager: ContextManager,
     ) -> None:
+        """Initialize executor with registry and context manager."""
         self._registry = registry
         self._context_manager = context_manager
 

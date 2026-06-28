@@ -11,6 +11,7 @@ class IdentityTransformer(TransformerPlugin):
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="identity-transformer",
             version="1.0.0",
@@ -19,5 +20,5 @@ class IdentityTransformer(TransformerPlugin):
         )
 
     def transform(self, data: dict[str, Any]) -> dict[str, Any]:
-        # Return a copy to avoid accidental mutation of the original data.
+        """Return a copy of the input data unchanged."""
         return dict(data)

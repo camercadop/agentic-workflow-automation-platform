@@ -1,7 +1,15 @@
-"""Validation Gates (ADR-009).
+"""Build-time validation gates (ADR-009).
 
-Each gate enforces a specific category of architectural compliance.
-Gates return a list of error strings (empty = passed).
+This module defines the five governance gates that every plugin and workflow
+must pass before entering the registry:
+
+- ManifestValidationGate: Ensures manifest metadata is complete and well-formed.
+- ContractValidationGate: Verifies a plugin subclasses the correct contract type.
+- SecurityValidationGate: Checks permission declarations for format and uniqueness.
+- ExecutionContextValidationGate: Validates declared resource requirements.
+- WorkflowValidationGate: Validates DAG structure and port/type compatibility.
+
+Each gate returns a list of error strings; an empty list means the gate passed.
 """
 
 from __future__ import annotations
@@ -52,9 +60,11 @@ class ManifestValidationGate(ValidationGate):
 
     @property
     def name(self) -> str:
+        """Human-readable gate name."""
         return "Manifest Validation Gate"
 
     def validate_plugin(self, plugin: PluginBase) -> list[str]:
+        """Check manifest fields for completeness and format."""
         errors: list[str] = []
         manifest = plugin.manifest
 
@@ -77,9 +87,11 @@ class ContractValidationGate(ValidationGate):
 
     @property
     def name(self) -> str:
+        """Human-readable gate name."""
         return "Contract Validation Gate"
 
     def validate_plugin(self, plugin: PluginBase) -> list[str]:
+        """Verify plugin subclasses the correct contract type."""
         errors: list[str] = []
         manifest = plugin.manifest
 
@@ -99,9 +111,11 @@ class SecurityValidationGate(ValidationGate):
 
     @property
     def name(self) -> str:
+        """Human-readable gate name."""
         return "Security Validation Gate"
 
     def validate_plugin(self, plugin: PluginBase) -> list[str]:
+        """Check permission format and uniqueness."""
         errors: list[str] = []
         manifest = plugin.manifest
 
@@ -110,9 +124,7 @@ class SecurityValidationGate(ValidationGate):
             if not perm.strip():
                 errors.append(f"Permission at index {i} must not be blank.")
             elif ":" not in perm:
-                errors.append(
-                    f"Permission '{perm}' must use 'scope:resource' format."
-                )
+                errors.append(f"Permission '{perm}' must use 'scope:resource' format.")
 
         # Plugins must not declare conflicting permissions
         seen: set[str] = set()
@@ -129,9 +141,11 @@ class ExecutionContextValidationGate(ValidationGate):
 
     @property
     def name(self) -> str:
+        """Human-readable gate name."""
         return "Execution Context Validation Gate"
 
     def validate_plugin(self, plugin: PluginBase) -> list[str]:
+        """Validate resource requirement declarations in metadata."""
         errors: list[str] = []
         manifest = plugin.manifest
 
@@ -155,8 +169,7 @@ class ExecutionContextValidationGate(ValidationGate):
 
         timeout_seconds = resources.get("timeout_seconds")
         if timeout_seconds is not None and (
-            not isinstance(timeout_seconds, int | float)
-            or timeout_seconds <= 0
+            not isinstance(timeout_seconds, int | float) or timeout_seconds <= 0
         ):
             errors.append("'timeout_seconds' must be a positive number.")
 
@@ -168,6 +181,7 @@ class WorkflowValidationGate:
 
     @property
     def name(self) -> str:
+        """Human-readable gate name."""
         return "Workflow Validation Gate"
 
     def validate_workflow(
@@ -175,7 +189,15 @@ class WorkflowValidationGate:
         workflow: WorkflowDefinition,
         registered_plugins: dict[str, PluginBase],
     ) -> list[str]:
-        """Validate workflow against registered plugins."""
+        """Validate workflow against registered plugins.
+
+        Args:
+            workflow: The workflow definition to validate.
+            registered_plugins: Available plugins keyed by name.
+
+        Returns:
+            A list of error strings (empty means valid).
+        """
         errors: list[str] = []
 
         # Plugin existence check

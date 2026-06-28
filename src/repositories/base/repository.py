@@ -14,19 +14,50 @@ class BaseRepository[T](ABC):
     """
 
     def __init__(self, session: Session) -> None:
+        """Initialize with a database session.
+
+        Args:
+            session: The SQLAlchemy session for database operations.
+        """
         self.session = session
 
     @abstractmethod
-    def get(self, entity_id: uuid.UUID) -> T | None: ...
+    def get(self, entity_id: uuid.UUID) -> T | None:
+        """Retrieve entity by ID.
+
+        Args:
+            entity_id: The entity's UUID.
+        """
+        ...
 
     @abstractmethod
-    def list(self) -> list[T]: ...
+    def list(self) -> list[T]:
+        """Return all entities."""
+        ...
 
     @abstractmethod
-    def create(self, entity: T) -> T: ...
+    def create(self, entity: T) -> T:
+        """Persist a new entity.
+
+        Args:
+            entity: The entity to persist.
+        """
+        ...
 
     @abstractmethod
-    def update(self, entity: T) -> T: ...
+    def update(self, entity: T) -> T:
+        """Update an existing entity.
+
+        Args:
+            entity: The entity with updated fields.
+        """
+        ...
 
     @abstractmethod
-    def delete(self, entity_id: uuid.UUID) -> None: ...
+    def delete(self, entity_id: uuid.UUID) -> None:
+        """Delete entity by ID.
+
+        Args:
+            entity_id: The entity's UUID.
+        """
+        ...

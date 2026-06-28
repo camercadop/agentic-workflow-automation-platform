@@ -12,6 +12,8 @@ from src.core.registry import LifecycleState
 
 
 class Plugin(SQLModel, table=True):
+    """Persistence model for registered plugins."""
+
     __tablename__ = "plugins"
 
     id: uuid.UUID = Field(

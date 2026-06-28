@@ -15,10 +15,12 @@ class ManualTrigger(TriggerPlugin):
     """
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
+        """Initialize with optional static configuration."""
         self._config = config or {}
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="manual-trigger",
             version="1.0.0",
@@ -27,4 +29,5 @@ class ManualTrigger(TriggerPlugin):
         )
 
     def check(self) -> dict[str, Any]:
+        """Return a static event payload."""
         return {"event": "manual", "payload": self._config.get("data", {})}

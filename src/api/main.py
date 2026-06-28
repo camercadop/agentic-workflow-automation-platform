@@ -38,6 +38,7 @@ app.include_router(workflows.router)
 async def integrity_error_handler(
     request: Request, exc: IntegrityError
 ) -> JSONResponse:
+    """Handle database integrity errors as 409 Conflict."""
     detail = ErrorDetail(ErrorCode.RESOURCE_ALREADY_EXISTS, "Resource already exists")
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
@@ -47,6 +48,7 @@ async def integrity_error_handler(
 
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    """Handle ValueError as 404 Not Found."""
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
         content={"detail": {"code": "RESOURCE_NOT_FOUND", "message": str(exc)}},

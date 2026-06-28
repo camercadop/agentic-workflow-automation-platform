@@ -42,10 +42,12 @@ class ValidationReport:
 
     @property
     def passed(self) -> bool:
+        """Whether all gates passed."""
         return all(gr.result == ValidationResult.PASSED for gr in self.gate_results)
 
     @property
     def errors(self) -> list[str]:
+        """Aggregate all error messages from failed gates."""
         errs: list[str] = []
         for gr in self.gate_results:
             errs.extend(gr.errors)
@@ -60,6 +62,7 @@ class ValidationEngine:
     """
 
     def __init__(self, gates: list[ValidationGate] | None = None) -> None:
+        """Initialize engine with optional custom gate list."""
         from src.governance.gates import (
             ContractValidationGate,
             ExecutionContextValidationGate,
@@ -75,15 +78,18 @@ class ValidationEngine:
         ]
 
     def validate_plugin(self, plugin: PluginBase) -> ValidationReport:
-        """Validate a plugin against all gates. All gates are always run."""
+        """Validate a plugin against all gates.
+
+        Args:
+            plugin: The plugin to validate.
+
+        Returns:
+            A report with results from all gates.
+        """
         results: list[GateResult] = []
         for gate in self._gates:
             errors = gate.validate_plugin(plugin)
-            status = (
-                ValidationResult.PASSED
-                if not errors
-                else ValidationResult.FAILED
-            )
+            status = ValidationResult.PASSED if not errors else ValidationResult.FAILED
             results.append(
                 GateResult(
                     gate_name=gate.name,
@@ -101,16 +107,20 @@ class ValidationEngine:
         workflow: WorkflowDefinition,
         registered_plugins: dict[str, PluginBase],
     ) -> ValidationReport:
-        """Validate a workflow definition against workflow-aware gates."""
+        """Validate a workflow definition against workflow-aware gates.
+
+        Args:
+            workflow: The workflow definition to validate.
+            registered_plugins: Available plugins keyed by name.
+
+        Returns:
+            A report with validation results.
+        """
         from src.governance.gates import WorkflowValidationGate
 
         gate = WorkflowValidationGate()
         errors = gate.validate_workflow(workflow, registered_plugins)
-        status = (
-            ValidationResult.PASSED
-            if not errors
-            else ValidationResult.FAILED
-        )
+        status = ValidationResult.PASSED if not errors else ValidationResult.FAILED
         return ValidationReport(
             artifact_name=workflow.name,
             gate_results=[

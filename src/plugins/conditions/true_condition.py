@@ -10,10 +10,12 @@ class TrueCondition(ConditionPlugin):
     """Condition that always evaluates to True."""
 
     def evaluate(self, data: dict[str, Any]) -> bool:
+        """Always returns True."""
         return True
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="true-condition",
             version="1.0.0",

@@ -16,6 +16,7 @@ class LogAction(ActionPlugin):
 
     @property
     def manifest(self) -> PluginManifest:
+        """Return the plugin manifest."""
         return PluginManifest(
             name="log-action",
             version="1.0.0",
@@ -24,5 +25,6 @@ class LogAction(ActionPlugin):
         )
 
     def execute(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Log and return the received data."""
         logger.info("LogAction received: %s", data)
         return data

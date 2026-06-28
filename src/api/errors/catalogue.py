@@ -19,6 +19,7 @@ class ErrorDetail:
     """Structured error payload returned in API responses."""
 
     def __init__(self, code: ErrorCode, message: str) -> None:
+        """Initialize error detail with code and message."""
         self.code = code
         self.message = message
 

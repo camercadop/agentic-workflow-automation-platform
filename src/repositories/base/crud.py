@@ -18,6 +18,7 @@ class CrudRepository[T](BaseRepository[T]):
     """
 
     def __init__(self, session: Session) -> None:
+        """Initialize with a database session."""
         super().__init__(session)
 
         # Walk the MRO's original generic bases to extract the concrete model
@@ -30,13 +31,23 @@ class CrudRepository[T](BaseRepository[T]):
                 break
 
     def get(self, entity_id: uuid.UUID) -> T | None:
+        """Retrieve entity by ID or return None.
+
+        Args:
+            entity_id: The entity's UUID.
+        """
         return self.session.get(self._model, entity_id)
 
     def list(self) -> list[T]:
+        """Return all entities."""
         return list(self.session.execute(select(self._model)).scalars().all())
 
     def create(self, entity: T) -> T:
-        """Persist entity and refresh to populate server-generated fields."""
+        """Persist entity and refresh to populate server-generated fields.
+
+        Args:
+            entity: The entity to persist.
+        """
         self.session.add(entity)
         self.session.commit()
         self.session.refresh(entity)
@@ -44,7 +55,11 @@ class CrudRepository[T](BaseRepository[T]):
         return entity
 
     def update(self, entity: T) -> T:
-        """Merge, commit, and refresh the entity."""
+        """Merge, commit, and refresh the entity.
+
+        Args:
+            entity: The entity with updated fields.
+        """
         merged = self.session.merge(entity)
         self.session.commit()
         self.session.refresh(merged)
@@ -52,7 +67,14 @@ class CrudRepository[T](BaseRepository[T]):
         return merged
 
     def delete(self, entity_id: uuid.UUID) -> None:
-        """Delete entity by ID. Raises if not found."""
+        """Delete entity by ID.
+
+        Args:
+            entity_id: The entity's UUID.
+
+        Raises:
+            ValueError: If the entity is not found.
+        """
         entity = self.session.get(self._model, entity_id)
         if entity is None:
             raise ValueError(f"{self._model.__name__} with id '{entity_id}' not found.")

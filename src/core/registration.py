@@ -6,7 +6,18 @@ _COLLECTED: dict[str, type[PluginBase]] = {}
 
 
 def register_plugin(cls: type[PluginBase]) -> type[PluginBase]:
-    """Mark a PluginBase subclass for build-time registry collection."""
+    """Mark a PluginBase subclass for build-time registry collection.
+
+    Args:
+        cls: The plugin class to register.
+
+    Returns:
+        The same class, unmodified.
+
+    Raises:
+        TypeError: If cls is not a PluginBase subclass.
+        ValueError: If a plugin with the same name and type is already registered.
+    """
     if not (isinstance(cls, type) and issubclass(cls, PluginBase)):
         raise TypeError(f"@register_plugin requires a PluginBase subclass, got {cls}")
     manifest = cls().manifest

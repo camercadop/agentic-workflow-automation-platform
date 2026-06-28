@@ -39,4 +39,5 @@ class DefaultIsolationService:
     """
 
     def authorize(self, manifest: PluginManifest, resources: list[str]) -> bool:  # noqa: ARG002
+        """Grant all authorization requests (permissive for dev/testing)."""
         return True

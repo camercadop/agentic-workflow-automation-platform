@@ -1,4 +1,4 @@
-"""Workflow execution persistence model using SQLModel."""
+"""Workflow execution persistence model."""
 
 import uuid
 from datetime import UTC, datetime
@@ -10,6 +10,8 @@ from sqlmodel import Field, SQLModel
 
 
 class ExecutionStatus(StrEnum):
+    """Possible states of a workflow execution."""
+
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -17,6 +19,8 @@ class ExecutionStatus(StrEnum):
 
 
 class WorkflowExecution(SQLModel, table=True):
+    """Persistence model for workflow execution records."""
+
     __tablename__ = "workflow_executions"
 
     id: uuid.UUID = Field(

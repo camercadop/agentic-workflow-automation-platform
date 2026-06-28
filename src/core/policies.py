@@ -63,6 +63,12 @@ class NodeExecutionError(Exception):
     """Raised when a node fails and error strategy is FAIL_FAST."""
 
     def __init__(self, node_id: str, message: str) -> None:
+        """Initialize with node ID and error message.
+
+        Args:
+            node_id: The ID of the failed node.
+            message: Description of the failure.
+        """
         self.node_id = node_id
         super().__init__(f"Node '{node_id}' failed: {message}")
 
@@ -82,7 +88,16 @@ class PolicyExecutor:
         policy: ExecutionPolicy,
         node_id: str,
     ) -> NodeExecutionResult:
-        """Execute fn with retry and timeout policies applied."""
+        """Execute fn with retry and timeout policies applied.
+
+        Args:
+            fn: The callable to execute.
+            policy: The execution policy to apply.
+            node_id: The node ID for result tracking.
+
+        Returns:
+            The execution result with success/failure and attempt count.
+        """
         last_error: str = ""
 
         for attempt in range(1, policy.retry.max_attempts + 1):

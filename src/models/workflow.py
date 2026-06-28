@@ -9,6 +9,8 @@ from sqlmodel import Field, SQLModel
 
 
 class Workflow(SQLModel, table=True):
+    """Persistence model for workflow definitions."""
+
     __tablename__ = "workflows"
 
     id: uuid.UUID = Field(
