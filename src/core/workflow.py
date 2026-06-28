@@ -51,6 +51,10 @@ class WorkflowEdge(BaseModel):
         default="any",
         description="Expected data type flowing through this edge.",
     )
+    condition: str | None = Field(
+        default=None,
+        description="Branch label for conditional edges ('true' or 'false').",
+    )
 
 
 class WorkflowDefinition(BaseModel):
@@ -88,13 +92,9 @@ class WorkflowDefinition(BaseModel):
         # Validate edge references
         for edge in self.edges:
             if edge.source_node not in node_ids:
-                raise ValueError(
-                    f"Edge source '{edge.source_node}' not in nodes."
-                )
+                raise ValueError(f"Edge source '{edge.source_node}' not in nodes.")
             if edge.target_node not in node_ids:
-                raise ValueError(
-                    f"Edge target '{edge.target_node}' not in nodes."
-                )
+                raise ValueError(f"Edge target '{edge.target_node}' not in nodes.")
 
         # Validate acyclicity via topological sort (Kahn's algorithm)
         in_degree: dict[str, int] = {nid: 0 for nid in node_ids}

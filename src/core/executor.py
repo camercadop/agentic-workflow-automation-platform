@@ -73,9 +73,13 @@ class WorkflowExecutor:
         """
         order = self._topological_order(workflow)
         results: dict[str, dict[str, Any]] = {}
+        pruned: set[str] = set()
         node_inputs = self._build_node_inputs(workflow, results, initial_data or {})
 
         for node_id in order:
+            if node_id in pruned:
+                continue
+
             node = next(n for n in workflow.nodes if n.node_id == node_id)
             plugin_entry = self._resolve_plugin(node.plugin_name)
             plugin = plugin_entry.plugin
@@ -93,6 +97,13 @@ class WorkflowExecutor:
                 self._handle_result(node_result, policy)
                 if node_result.success:
                     results[node_id] = node_result.data
+
+                # Branch pruning for condition nodes
+                if node_result.success and isinstance(plugin, ConditionPlugin):
+                    pruned.update(
+                        self._prune_branches(workflow, node_id, node_result.data)
+                    )
+
                 # Refresh inputs for downstream nodes
                 node_inputs = self._build_node_inputs(
                     workflow, results, initial_data or {}
@@ -101,6 +112,68 @@ class WorkflowExecutor:
                 self._context_manager.destroy(ctx.context_id)
 
         return results
+
+    def _prune_branches(
+        self,
+        workflow: WorkflowDefinition,
+        condition_node_id: str,
+        result_data: dict[str, Any],
+    ) -> set[str]:
+        """Determine which downstream nodes to prune based on condition result.
+
+        Only prunes when outgoing edges have condition labels. Nodes reachable
+        through non-pruned paths are preserved.
+
+        Args:
+            workflow: The workflow definition.
+            condition_node_id: The condition node that was just evaluated.
+            result_data: The condition node's output (expects 'result' key).
+
+        Returns:
+            Set of node IDs to skip.
+        """
+        condition_result = result_data.get("result", True)
+        outcome = "true" if condition_result else "false"
+
+        outgoing = [e for e in workflow.edges if e.source_node == condition_node_id]
+        # Only apply pruning if edges have condition labels
+        labeled = [e for e in outgoing if e.condition is not None]
+        if not labeled:
+            return set()
+
+        # Find nodes on the pruned branch
+        pruned_targets = {e.target_node for e in labeled if e.condition != outcome}
+        # Find nodes on the active branch
+        active_targets = {e.target_node for e in labeled if e.condition == outcome}
+        # Also include unlabeled edges as always-active
+        active_targets.update(e.target_node for e in outgoing if e.condition is None)
+
+        # Expand pruned set: collect all nodes reachable exclusively from pruned targets
+        all_node_ids = {n.node_id for n in workflow.nodes}
+        adjacency: dict[str, set[str]] = {nid: set() for nid in all_node_ids}
+        incoming: dict[str, set[str]] = {nid: set() for nid in all_node_ids}
+        for edge in workflow.edges:
+            adjacency[edge.source_node].add(edge.target_node)
+            incoming[edge.target_node].add(edge.source_node)
+
+        pruned: set[str] = set()
+        queue = list(pruned_targets - active_targets)
+        while queue:
+            nid = queue.pop()
+            # A node is pruned only if ALL its incoming sources are pruned or
+            # the condition node itself (for direct targets)
+            sources = incoming[nid]
+            all_sources_pruned = all(
+                s in pruned or s == condition_node_id for s in sources
+            )
+            if not all_sources_pruned:
+                continue
+            pruned.add(nid)
+            for child in adjacency[nid]:
+                if child not in pruned:
+                    queue.append(child)
+
+        return pruned
 
     def _build_policy(self, config: dict[str, Any]) -> ExecutionPolicy:
         """Extract execution policy from node config, falling back to defaults.

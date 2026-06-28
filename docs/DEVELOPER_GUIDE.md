@@ -181,6 +181,29 @@ Construction raises `ValidationError` if:
 - The graph contains a cycle
 - Required fields are missing or empty
 
+#### Understanding Edges
+
+Nodes are the "what" (plugins that do work), and edges are the "how data flows between them." They turn a flat list of nodes into an executable DAG by defining dependencies and data routing.
+
+Each edge specifies:
+
+| Field | Purpose |
+|-------|----------|
+| `source_node` | Node producing the data |
+| `source_port` | Which output port of the source to read from |
+| `target_node` | Node consuming the data |
+| `target_port` | Which input port of the target to write to |
+| `condition` | *(optional)* Branch label (`"true"`/`"false"`) for condition nodes |
+| `data_type` | *(optional)* Expected type for compatibility validation |
+
+For example:
+
+```json
+{"source_node": "trigger", "source_port": "payload", "target_node": "action", "target_port": "data"}
+```
+
+This means: take the `payload` output from the `trigger` node and pass it as the `data` input to the `action` node. The executor uses edges to determine execution order (topological sort) and to route data between plugin executions.
+
 ### 5. Executing Workflows
 
 The `WorkflowExecutor` ties everything together — it resolves plugins from the registry, provisions contexts, and dispatches execution:

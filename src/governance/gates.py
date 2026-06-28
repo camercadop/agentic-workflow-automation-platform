@@ -177,7 +177,18 @@ class ExecutionContextValidationGate(ValidationGate):
 
 
 class WorkflowValidationGate:
-    """Validates workflow DAG structure and plugin compatibility (ADR-007)."""
+    """Validates workflow DAG structure and plugin compatibility (ADR-007).
+
+    Unlike the other gates which validate individual plugins, this gate operates
+    on an entire workflow definition. It ensures the DAG is well-formed by checking:
+
+    - All nodes reference plugins that exist in the registry.
+    - Condition edge labels are valid ('true'/'false') and originate from
+    ConditionPlugin nodes only.
+    - Edge source/target ports match the declared inputs/outputs of their
+    respective plugins.
+    - Data types are compatible across connected ports.
+    """
 
     @property
     def name(self) -> str:
@@ -206,6 +217,32 @@ class WorkflowValidationGate:
                 errors.append(
                     f"Node '{node.node_id}' references unregistered plugin "
                     f"'{node.plugin_name}'."
+                )
+
+        # Validate condition edge labels
+        for edge in workflow.edges:
+            if edge.condition is not None and edge.condition not in ("true", "false"):
+                errors.append(
+                    f"Edge from '{edge.source_node}' to '{edge.target_node}' has "
+                    f"invalid condition label '{edge.condition}' "
+                    f"(must be 'true' or 'false')."
+                )
+
+        # Validate condition-labeled edges originate from condition plugins
+        for edge in workflow.edges:
+            if edge.condition is None:
+                continue
+            source_node = next(
+                (n for n in workflow.nodes if n.node_id == edge.source_node), None
+            )
+            if not source_node:
+                continue
+            source_plugin = registered_plugins.get(source_node.plugin_name)
+            if source_plugin and not isinstance(source_plugin, ConditionPlugin):
+                errors.append(
+                    f"Edge from '{edge.source_node}' to '{edge.target_node}' has "
+                    f"condition label but source plugin '{source_node.plugin_name}' "
+                    f"is not a ConditionPlugin."
                 )
 
         # Port compatibility check on edges
