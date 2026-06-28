@@ -14,6 +14,10 @@ class ExecutionCreate(BaseModel):
     context: dict[str, Any] = Field(default_factory=dict)
 
 
+class ExecutionUpdate(BaseModel):
+    status: ExecutionStatus
+
+
 class ExecutionResponse(BaseModel):
     id: uuid.UUID
     workflow_id: str

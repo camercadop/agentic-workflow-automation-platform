@@ -193,3 +193,63 @@ Plugins must be in `ACTIVE` state. The executor raises `WorkflowExecutionError` 
 - **Plugin isolation is mandatory.** Plugins never share execution contexts, access each other's state, or reference Core internals.
 - **Contexts are ephemeral.** Always provision before execution and destroy in a `finally` block after execution.
 - **Lifecycle transitions are sequential.** No skipping states. The registry enforces this.
+
+---
+
+## REST API
+
+The platform exposes a REST API via FastAPI. Base URL: `http://localhost:8000`.
+
+### Plugins
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/plugins/` | List all plugins |
+| GET | `/plugins/{id}` | Get plugin by ID |
+| POST | `/plugins/` | Register a new plugin |
+| PATCH | `/plugins/{id}` | Update plugin lifecycle state |
+| DELETE | `/plugins/{id}` | Delete a plugin |
+
+**POST /plugins/** request body:
+```json
+{"name": "my-plugin", "version": "1.0.0", "plugin_type": "action", "manifest": {}}
+```
+
+**PATCH /plugins/{id}** request body:
+```json
+{"lifecycle_state": "activated"}
+```
+
+### Workflow Executions
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/executions/` | List all executions |
+| GET | `/executions/{id}` | Get execution by ID |
+| POST | `/executions/` | Create a new execution |
+| PATCH | `/executions/{id}` | Update execution status |
+| DELETE | `/executions/{id}` | Delete an execution |
+
+**POST /executions/** request body:
+```json
+{"workflow_id": "wf-001", "context": {"key": "value"}}
+```
+
+**PATCH /executions/{id}** request body:
+```json
+{"status": "running"}
+```
+
+### Error Responses
+
+All errors follow a consistent structure:
+
+```json
+{"detail": {"code": "RESOURCE_NOT_FOUND", "message": "Plugin not found"}}
+```
+
+| Status | Code | Meaning |
+|--------|------|---------|
+| 404 | `RESOURCE_NOT_FOUND` | Resource does not exist |
+| 409 | `RESOURCE_ALREADY_EXISTS` | Conflict (e.g. duplicate plugin name) |
+| 422 | `VALIDATION_ERROR` | Invalid request body |

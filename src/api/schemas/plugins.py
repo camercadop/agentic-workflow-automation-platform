@@ -17,6 +17,10 @@ class PluginCreate(BaseModel):
     manifest: dict[str, Any] = Field(default_factory=dict)
 
 
+class PluginUpdate(BaseModel):
+    lifecycle_state: LifecycleState
+
+
 class PluginResponse(BaseModel):
     id: uuid.UUID
     name: str
