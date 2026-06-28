@@ -18,9 +18,9 @@
 | `core/executor.py` | Workflow runtime: topological ordering, context provisioning, plugin dispatch, policy enforcement | ADR-006, ADR-007 |
 | `core/policies.py` | Execution policies: retry, timeout, error strategies applied per-node | — |
 | `core/bootstrap.py` | Application startup: auto-discovers plugin modules, builds live registry | ADR-002 |
-| `models/` | SQLModel persistence models (Plugin, Workflow, WorkflowExecution) | — |
+| `models/` | SQLModel persistence models | — |
 | `repositories/` | Repository pattern for CRUD data access | — |
-| `api/routes/` | FastAPI route handlers (plugins, workflows, executions) | — |
+| `api/routes/` | FastAPI route handlers | — |
 | `api/schemas/` | Pydantic request/response schemas | — |
 
 ---
@@ -57,10 +57,10 @@ Plugin types and their required methods:
 
 | Base Class | Method to Implement | Returns |
 |---|---|---|
-| `TriggerPlugin` | `check()` | `dict[str, Any]` |
-| `ConditionPlugin` | `evaluate(data)` | `bool` |
-| `TransformerPlugin` | `transform(data)` | `dict[str, Any]` |
-| `ActionPlugin` | `execute(data)` | `dict[str, Any]` |
+| `TriggerPlugin` | `check()` | `dict[str, Any]` — initial payload that flows into downstream nodes (e.g. `{"event": "timer", "payload": {...}}`) |
+| `ConditionPlugin` | `evaluate(data)` | `bool` — `True`/`False` decides which branch edges to follow |
+| `TransformerPlugin` | `transform(data)` | `dict[str, Any]` — transformed data that replaces the original for downstream nodes (e.g. `{"amount": 100, "currency": "USD"}`) |
+| `ActionPlugin` | `execute(data)` | `dict[str, Any]` — side-effect outcome passed downstream and stored in execution results (e.g. `{"status": "sent", "message_id": "abc"}`) |
 
 Lifecycle hooks are optional — override only when needed:
 - `on_activate()` — called on Registered → Activated
@@ -95,8 +95,14 @@ registry, context_manager = build_registry()
 
 The registry enforces a strict sequential lifecycle:
 
-```
-Registered → Activated → Active → Deactivated → CleanedUp
+```mermaid
+stateDiagram-v2
+    [*] --> Registered : register()
+    Registered --> Activated : activate()
+    Activated --> Active : mark_active()
+    Active --> Deactivated : deactivate()
+    Deactivated --> CleanedUp : cleanup()
+    CleanedUp --> [*]
 ```
 
 ```python
@@ -119,6 +125,22 @@ Invalid transitions raise `LifecycleError`. Duplicate registrations raise `Value
 ### 3. Execution Contexts
 
 The `ContextManager` provisions isolated execution boundaries per plugin instance. Authorization is delegated to an `IsolationService`:
+
+```mermaid
+sequenceDiagram
+    participant Executor
+    participant ContextManager
+    participant IsolationService
+    participant Plugin
+
+    Executor->>ContextManager: provision(manifest)
+    ContextManager->>IsolationService: authorize(manifest, resources)
+    IsolationService-->>ContextManager: allowed
+    ContextManager-->>Executor: ExecutionContext
+    Executor->>Plugin: execute(data)
+    Plugin-->>Executor: result
+    Executor->>ContextManager: destroy(context_id)
+```
 
 ```python
 from src.core.context import ContextManager
@@ -208,6 +230,30 @@ This means: take the `payload` output from the `trigger` node and pass it as the
 
 The `WorkflowExecutor` ties everything together — it resolves plugins from the registry, provisions contexts, and dispatches execution:
 
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Executor
+    participant Registry
+    participant ContextManager
+    participant PolicyExecutor
+    participant Plugin
+
+    Client->>Executor: execute(workflow, initial_data)
+    loop For each node (topological order)
+        Executor->>Registry: get(plugin_name)
+        Registry-->>Executor: plugin instance
+        Executor->>ContextManager: provision(manifest)
+        ContextManager-->>Executor: context
+        Executor->>PolicyExecutor: execute_with_policy(plugin, data, policy)
+        PolicyExecutor->>Plugin: invoke (with retry/timeout)
+        Plugin-->>PolicyExecutor: result
+        PolicyExecutor-->>Executor: result
+        Executor->>ContextManager: destroy(context_id)
+    end
+    Executor-->>Client: {node_id: result, ...}
+```
+
 ```python
 from src.core.context import ContextManager
 from src.core.executor import WorkflowExecutor
@@ -266,6 +312,20 @@ node = WorkflowNode(
 Nodes without a `policy` config use safe defaults (1 attempt, 30s timeout, fail_fast).
 
 The `PolicyExecutor` wraps each plugin call in a thread pool to enforce timeouts, and implements exponential backoff between retry attempts.
+
+```mermaid
+flowchart TD
+    Start[Execute Node] --> Timeout{Within timeout?}
+    Timeout -- No --> TimeoutErr[TimeoutError]
+    Timeout -- Yes --> Call[Call Plugin]
+    Call -- Success --> Done[Return Result]
+    Call -- Failure --> Retry{Attempts remaining?}
+    Retry -- Yes --> Backoff[Wait delay × backoff^n] --> Call
+    Retry -- No --> Strategy{Error Strategy}
+    Strategy -- fail_fast --> Abort[Abort Workflow]
+    Strategy -- skip_node --> Skip[Skip Node]
+    Strategy -- continue --> Continue[Continue with no output]
+```
 
 ---
 
@@ -375,6 +435,28 @@ The execution endpoint resolves plugins from the live registry, provisions isola
 **PATCH /executions/{id}** request body:
 ```json
 {"status": "running"}
+```
+
+### Request/Response Flow
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant FastAPI
+    participant Repository
+    participant Database
+    participant Executor
+
+    Client->>FastAPI: POST /workflows/{id}/execute
+    FastAPI->>Repository: get workflow
+    Repository->>Database: SELECT
+    Database-->>Repository: workflow record
+    Repository-->>FastAPI: workflow
+    FastAPI->>Executor: execute(workflow, data)
+    Executor-->>FastAPI: results
+    FastAPI->>Repository: save execution
+    Repository->>Database: INSERT
+    FastAPI-->>Client: 200 {execution_id, status, results}
 ```
 
 ### Error Responses
