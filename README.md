@@ -1,6 +1,6 @@
 # agentic-workflow-automation-platform
 
-> **Status:** Phases 1–3 complete (Core Engine, Persistence, API Layer). Phase 4 (Execution Policies) **next**.
+> **Status:** Phases 1–4 complete (Core Engine, Persistence, API Layer, Execution Policies). Phase 5 (Conditions Engine) **next**.
 >
 > The architecture documentation (ADRs and C4 diagrams) remains the authoritative source of truth.
 
@@ -38,10 +38,11 @@ This platform implements an **agentic software development lifecycle** (ASDL) an
 ## Core Components
 These components embody the architectural principles defined in the ADRs and form the foundation of the platform's runtime behavior.
 
--- **Workflow Runtime (ADR-007)**: Executes the workflow DAG, respecting defined dependencies, non-linear paths, and pruning invalid branches. Validated during build time.
--- **Plugin Contract Model (ADR-005)**: Defines standardized interfaces and contracts for plugins without exposing concrete implementation classes or validation mechanisms.
--- **Execution Context (ADR-006)**: Per‑execution context instance isolation boundary that encapsulates memory, threads, and sandbox scopes. Ensures complete isolation even within the same workflow.
--- **Build‑Time Validation Framework (ADR‑009)**: Enforces architectural compliance through gates (Manifest, Contract, Security, Context, Workflow) before deployment.
+- **Workflow Runtime (ADR-007)**: Executes the workflow DAG, respecting defined dependencies, non-linear paths, and pruning invalid branches. Validated during build time.
+- **Plugin Contract Model (ADR-005)**: Defines standardized interfaces and contracts for plugins without exposing concrete implementation classes or validation mechanisms.
+- **Execution Context (ADR-006)**: Per‑execution context instance isolation boundary that encapsulates memory, threads, and sandbox scopes. Ensures complete isolation even within the same workflow.
+- **Build‑Time Validation Framework (ADR‑009)**: Enforces architectural compliance through gates (Manifest, Contract, Security, Context, Workflow) before deployment.
+- **Execution Policies**: Per-node retry, timeout, and error handling strategies that provide resilience during workflow execution.
 
 ### System Structure
 | Layer | Responsibility | ADR Reference |
@@ -92,7 +93,7 @@ Clear architectural boundaries separate plugin execution from core governance.
 - **Isolation & Validation**: Plugins execute in isolated contexts with contract validation; failures are reported during validation (ADR-004).
 
 ## MVP Scope
-- **Core Components**: Plugin Contracts, Plugin Registry, Execution Context, Workflow Definition, Workflow Executor
+- **Core Components**: Plugin Contracts, Plugin Registry, Execution Context, Workflow Definition, Workflow Executor, Execution Policies
 - **Governance**: Agent collaboration under architect oversight
 - **Process**: Full pipeline from requirement to merge
 
@@ -172,6 +173,26 @@ curl -X POST http://localhost:8000/workflows/ \
 curl -X POST http://localhost:8000/workflows/<workflow-id>/execute \
   -H "Content-Type: application/json" \
   -d '{"initial_data": {"msg": "hello"}}'
+
+# Create a workflow with execution policies (retry + timeout)
+curl -X POST http://localhost:8000/workflows/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "resilient-workflow",
+    "nodes": [
+      {"node_id": "trigger", "plugin_name": "manual-trigger"},
+      {"node_id": "action", "plugin_name": "log-action", "config": {
+        "policy": {
+          "retry": {"max_attempts": 3, "delay_seconds": 1.0, "backoff_factor": 2.0},
+          "timeout": {"timeout_seconds": 10.0},
+          "error_strategy": "skip_node"
+        }
+      }}
+    ],
+    "edges": [
+      {"source_node": "trigger", "source_port": "payload", "target_node": "action", "target_port": "data"}
+    ]
+  }'
 ```
 
 ## Docker

@@ -15,7 +15,8 @@
 | `core/registry.py` | Static plugin registry and lifecycle state machine | ADR-002, ADR-003 |
 | `core/context.py` | Per-execution isolation boundary and context provisioning | ADR-004, ADR-006 |
 | `core/workflow.py` | DAG definition model with built-in validation | ADR-007 |
-| `core/executor.py` | Workflow runtime: topological ordering, context provisioning, plugin dispatch | ADR-006, ADR-007 |
+| `core/executor.py` | Workflow runtime: topological ordering, context provisioning, plugin dispatch, policy enforcement | ADR-006, ADR-007 |
+| `core/policies.py` | Execution policies: retry, timeout, error strategies applied per-node | — |
 | `core/bootstrap.py` | Application startup: auto-discovers plugin modules, builds live registry | ADR-002 |
 | `models/` | SQLModel persistence models (Plugin, Workflow, WorkflowExecution) | — |
 | `repositories/` | Repository pattern for CRUD data access | — |
@@ -198,6 +199,50 @@ results = executor.execute(wf, initial_data={"key": "value"})
 ```
 
 Plugins must be in `ACTIVE` state. The executor raises `WorkflowExecutionError` for inactive plugins and `KeyError` for unregistered ones.
+
+### 6. Execution Policies
+
+The executor applies per-node execution policies for resilience. Policies are declared in the node's `config.policy` field:
+
+```python
+from src.core.workflow import WorkflowNode
+
+node = WorkflowNode(
+    node_id="send-email",
+    plugin_name="email-sender",
+    config={
+        "policy": {
+            "retry": {
+                "max_attempts": 3,
+                "delay_seconds": 1.0,
+                "backoff_factor": 2.0,
+            },
+            "timeout": {"timeout_seconds": 10.0},
+            "error_strategy": "skip_node",
+        }
+    },
+)
+```
+
+**Policy components:**
+
+| Component | Fields | Default |
+|-----------|--------|---------|
+| `retry` | `max_attempts`, `delay_seconds`, `backoff_factor` | 1 attempt, no delay, 2x backoff |
+| `timeout` | `timeout_seconds` | 30s |
+| `error_strategy` | `fail_fast`, `skip_node`, `continue` | `fail_fast` |
+
+**Error strategies:**
+
+| Strategy | Behavior |
+|----------|----------|
+| `fail_fast` | Abort the entire workflow immediately on node failure (default) |
+| `skip_node` | Mark the failed node as skipped; downstream nodes receive no data from it |
+| `continue` | Log the error, proceed to next nodes as if the node produced no output |
+
+Nodes without a `policy` config use safe defaults (1 attempt, 30s timeout, fail_fast).
+
+The `PolicyExecutor` wraps each plugin call in a thread pool to enforce timeouts, and implements exponential backoff between retry attempts.
 
 ---
 
