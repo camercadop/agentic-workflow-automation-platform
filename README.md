@@ -1,6 +1,6 @@
 # agentic-workflow-automation-platform
 
-> **Status:** Phase 1 (Core Engine) complete. Phase 2 (Persistence) **in progress**.
+> **Status:** Phases 1–3 complete (Core Engine, Persistence, API Layer). Phase 4 (Execution Policies) **next**.
 >
 > The architecture documentation (ADRs and C4 diagrams) remains the authoritative source of truth.
 
@@ -110,9 +110,13 @@ Clear architectural boundaries separate plugin execution from core governance.
 ## Project Structure
 ```
 ├── src/
-│   ├── core/          # Core Engine (registry, lifecycle, orchestration)
-│   ├── plugins/       # Plugin implementations
-│   └── api/           # FastAPI application
+│   ├── core/          # Core Engine (registry, lifecycle, orchestration, bootstrap)
+│   ├── plugins/       # Plugin implementations (triggers, conditions, transformers, actions)
+│   ├── models/        # SQLModel persistence models
+│   ├── repositories/  # Repository pattern for data access
+│   ├── api/           # FastAPI application (routes, schemas, errors)
+│   └── database.py    # Engine and session management
+├── migrations/        # Alembic database migrations
 ├── tests/
 │   ├── unit/          # Unit tests
 │   └── integration/   # Integration tests
@@ -137,6 +141,37 @@ uv run mypy src/
 
 # Run tests
 uv run pytest
+
+# Run database migrations (requires DATABASE_URL env var)
+uv run alembic upgrade head
+
+# Start the API server
+uv run uvicorn src.api.main:app --reload
+```
+
+## API Quickstart
+
+Once running, the API is available at `http://localhost:8000` (docs at `/docs`).
+
+```bash
+# Create a workflow
+curl -X POST http://localhost:8000/workflows/ \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "hello-world",
+    "nodes": [
+      {"node_id": "trigger", "plugin_name": "manual-trigger"},
+      {"node_id": "action", "plugin_name": "log-action"}
+    ],
+    "edges": [
+      {"source_node": "trigger", "source_port": "payload", "target_node": "action", "target_port": "data"}
+    ]
+  }'
+
+# Execute the workflow (replace <workflow-id> with the returned UUID)
+curl -X POST http://localhost:8000/workflows/<workflow-id>/execute \
+  -H "Content-Type: application/json" \
+  -d '{"initial_data": {"msg": "hello"}}'
 ```
 
 ## Docker

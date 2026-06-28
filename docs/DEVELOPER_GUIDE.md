@@ -9,13 +9,18 @@
 
 | Module | Responsibility | ADR |
 |--------|----------------|-----|
-| `manifest.py` | Plugin metadata model (name, type, ports, permissions) | ADR-002, ADR-005 |
-| `contracts.py` | Abstract plugin interfaces (`TriggerPlugin`, `ConditionPlugin`, `TransformerPlugin`, `ActionPlugin`) | ADR-003, ADR-005 |
-| `registration.py` | Decorator-based plugin collection for build-time registry generation | ADR-002 |
-| `registry.py` | Static plugin registry and lifecycle state machine | ADR-002, ADR-003 |
-| `context.py` | Per-execution isolation boundary and context provisioning | ADR-004, ADR-006 |
-| `workflow.py` | DAG definition model with built-in validation | ADR-007 |
-| `executor.py` | Workflow runtime: topological ordering, context provisioning, plugin dispatch | ADR-006, ADR-007 |
+| `core/manifest.py` | Plugin metadata model (name, type, ports, permissions) | ADR-002, ADR-005 |
+| `core/contracts.py` | Abstract plugin interfaces (`TriggerPlugin`, `ConditionPlugin`, `TransformerPlugin`, `ActionPlugin`) | ADR-003, ADR-005 |
+| `core/registration.py` | Decorator-based plugin collection for build-time registry generation | ADR-002 |
+| `core/registry.py` | Static plugin registry and lifecycle state machine | ADR-002, ADR-003 |
+| `core/context.py` | Per-execution isolation boundary and context provisioning | ADR-004, ADR-006 |
+| `core/workflow.py` | DAG definition model with built-in validation | ADR-007 |
+| `core/executor.py` | Workflow runtime: topological ordering, context provisioning, plugin dispatch | ADR-006, ADR-007 |
+| `core/bootstrap.py` | Application startup: auto-discovers plugin modules, builds live registry | ADR-002 |
+| `models/` | SQLModel persistence models (Plugin, Workflow, WorkflowExecution) | — |
+| `repositories/` | Repository pattern for CRUD data access | — |
+| `api/routes/` | FastAPI route handlers (plugins, workflows, executions) | — |
+| `api/schemas/` | Pydantic request/response schemas | — |
 
 ---
 
@@ -77,7 +82,17 @@ class EmailSender(ActionPlugin):
 
 The Registry Builder imports plugin modules, calls `get_collected_plugins()`, validates each against the governance gates, and produces the static registry artifact.
 
-At startup, the registry enforces a strict sequential lifecycle:
+At application startup, the `bootstrap.py` module auto-discovers all plugin modules under `src/plugins/`, instantiates decorated classes, and transitions them to ACTIVE:
+
+```python
+# This happens automatically via the FastAPI lifespan in src/api/main.py
+from src.core.bootstrap import build_registry
+
+registry, context_manager = build_registry()
+# All @register_plugin classes are now ACTIVE in the registry
+```
+
+The registry enforces a strict sequential lifecycle:
 
 ```
 Registered → Activated → Active → Deactivated → CleanedUp
@@ -200,6 +215,8 @@ Plugins must be in `ACTIVE` state. The executor raises `WorkflowExecutionError` 
 
 The platform exposes a REST API via FastAPI. Base URL: `http://localhost:8000`.
 
+At startup, a `lifespan` handler in `src/api/main.py` calls `build_registry()` to auto-discover and activate all `@register_plugin`-decorated plugins. The registry and context manager are stored on `app.state` and injected as dependencies into route handlers.
+
 ### Plugins
 
 | Method | Path | Description |
@@ -220,13 +237,65 @@ The platform exposes a REST API via FastAPI. Base URL: `http://localhost:8000`.
 {"lifecycle_state": "activated"}
 ```
 
+### Workflows
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/workflows/` | List all workflow definitions |
+| GET | `/workflows/{id}` | Get workflow by ID |
+| POST | `/workflows/` | Create a new workflow (validates DAG) |
+| PATCH | `/workflows/{id}` | Update workflow definition |
+| DELETE | `/workflows/{id}` | Delete a workflow |
+| POST | `/workflows/{id}/execute` | Execute a workflow |
+
+**POST /workflows/** request body:
+```json
+{
+  "name": "email-alert",
+  "nodes": [
+    {"node_id": "trigger", "plugin_name": "manual-trigger", "config": {}},
+    {"node_id": "action", "plugin_name": "log-action"}
+  ],
+  "edges": [
+    {
+      "source_node": "trigger",
+      "source_port": "payload",
+      "target_node": "action",
+      "target_port": "data"
+    }
+  ]
+}
+```
+
+Creation validates the DAG (acyclicity + edge referential integrity). Returns `422` if the graph is invalid.
+
+**POST /workflows/{id}/execute** request body:
+```json
+{"initial_data": {"key": "value"}}
+```
+
+Response:
+```json
+{
+  "execution_id": "uuid",
+  "workflow_id": "uuid",
+  "status": "completed",
+  "results": {
+    "trigger": {"event": "manual", "payload": {}},
+    "action": {"data": {}}
+  }
+}
+```
+
+The execution endpoint resolves plugins from the live registry, provisions isolated contexts per node, and persists the result in the `workflow_executions` table with status transitions (RUNNING → COMPLETED/FAILED).
+
 ### Workflow Executions
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/executions/` | List all executions |
 | GET | `/executions/{id}` | Get execution by ID |
-| POST | `/executions/` | Create a new execution |
+| POST | `/executions/` | Create a new execution record |
 | PATCH | `/executions/{id}` | Update execution status |
 | DELETE | `/executions/{id}` | Delete an execution |
 

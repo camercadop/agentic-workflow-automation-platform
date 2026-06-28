@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from starlette import status
 
@@ -28,9 +28,13 @@ from src.repositories.workflows import WorkflowRepository
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
-# Module-level singletons — in production these would be configured at startup
-_registry = PluginRegistry()
-_context_manager = ContextManager()
+
+def _get_registry(request: Request) -> PluginRegistry:
+    return request.app.state.registry  # type: ignore[no-any-return]
+
+
+def _get_context_manager(request: Request) -> ContextManager:
+    return request.app.state.context_manager  # type: ignore[no-any-return]
 
 
 def _get_repo(session: Annotated[Session, Depends(get_session)]) -> WorkflowRepository:
@@ -45,6 +49,8 @@ def _get_execution_repo(
 
 RepoDep = Annotated[WorkflowRepository, Depends(_get_repo)]
 ExecRepoDep = Annotated[WorkflowExecutionRepository, Depends(_get_execution_repo)]
+RegistryDep = Annotated[PluginRegistry, Depends(_get_registry)]
+CtxMgrDep = Annotated[ContextManager, Depends(_get_context_manager)]
 
 
 @router.get("/", response_model=list[WorkflowResponse])
@@ -145,6 +151,8 @@ def execute_workflow(
     body: WorkflowExecuteRequest,
     repo: RepoDep,
     exec_repo: ExecRepoDep,
+    registry: RegistryDep,
+    ctx_mgr: CtxMgrDep,
 ) -> dict[str, Any]:
     """Trigger execution of a workflow definition.
 
@@ -173,7 +181,7 @@ def execute_workflow(
     execution = exec_repo.create(execution)
 
     # Run the workflow
-    executor = WorkflowExecutor(_registry, _context_manager)
+    executor = WorkflowExecutor(registry, ctx_mgr)
     try:
         results = executor.execute(definition, body.initial_data)
         execution.status = ExecutionStatus.COMPLETED

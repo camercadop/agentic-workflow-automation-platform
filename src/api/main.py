@@ -1,5 +1,8 @@
 """Main FastAPI application module."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
@@ -7,11 +10,23 @@ from starlette import status
 
 from src.api.errors import ErrorCode, ErrorDetail
 from src.api.routes import executions, plugins, workflows
+from src.core.bootstrap import build_registry
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Bootstrap plugin registry on startup."""
+    registry, context_manager = build_registry()
+    app.state.registry = registry
+    app.state.context_manager = context_manager
+    yield
+
 
 app = FastAPI(
     title="Agentic Workflow Automation Platform",
     description="Plugin-based workflow automation platform with DAG-based pipelines.",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.include_router(plugins.router)
