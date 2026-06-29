@@ -1,6 +1,6 @@
 # agentic-workflow-automation-platform
 
-> **Status:** Phases 1–4 complete (Core Engine, Persistence, API Layer, Execution Policies). Phase 5 (Conditions Engine) **next**.
+> **Status:** Phases 1–4 complete (Core Engine, Persistence, API Layer, Execution Policies). Phase 5 (Agent Infrastructure) **next**.
 >
 > The architecture documentation (ADRs and C4 diagrams) remains the authoritative source of truth.
 
@@ -110,6 +110,9 @@ Clear architectural boundaries separate plugin execution from core governance.
 
 ## Project Structure
 ```
+├── agents/            # Development-time agent definitions (ADR-008)
+├── skills/            # Reusable agent capabilities
+├── prompts/           # LLM prompt templates per agent role
 ├── src/
 │   ├── core/          # Core Engine (registry, lifecycle, orchestration, bootstrap)
 │   ├── plugins/       # Plugin implementations (triggers, conditions, transformers, actions)
@@ -123,10 +126,44 @@ Clear architectural boundaries separate plugin execution from core governance.
 │   └── integration/   # Integration tests
 ├── docs/
 │   ├── adr/           # Architectural Decision Records
-│   └── architecture/  # C4 diagrams, domain model, vision
+│   ├── architecture/  # C4 diagrams, domain model, vision
+│   ├── tasks/         # Task documents (agentic process)
+│   └── reports/       # Implementation and review reports
 ├── pyproject.toml     # Project config, dependencies, tool settings
 └── uv.lock            # Lockfile
 ```
+
+## Scripts
+
+### Orchestrator CLI
+
+The `scripts/orchestrator.py` CLI provides semi-automatic orchestration of AI agents for development tasks. It automates routine steps (planning, implementation, testing, review) while maintaining human oversight at key checkpoints.
+
+```bash
+# Run the full agentic pipeline for a requirement
+uv run python scripts/orchestrator.py run "Create a RegexCondition plugin"
+
+# Dry run (no file writes)
+uv run python scripts/orchestrator.py run --dry-run "Add a TimerTrigger plugin"
+
+# Skip manual confirmations (for CI)
+uv run python scripts/orchestrator.py run --auto-approve "Add logging transformer"
+
+# Skip architect review step
+uv run python scripts/orchestrator.py run --skip-architect "Fix typo in README"
+
+# Check status of all tasks
+uv run python scripts/orchestrator.py status
+
+# Validate workspace structure
+uv run python scripts/orchestrator.py validate
+```
+
+| Command    | Description                                          |
+|------------|------------------------------------------------------|
+| `run`      | Execute the full pipeline (plan → architect → dev → test → review → merge) |
+| `status`   | Show task history and review states                  |
+| `validate` | Run structural quality gates against the workspace   |
 
 ## Development Setup
 
