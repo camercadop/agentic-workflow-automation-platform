@@ -14,9 +14,13 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+# Load .env from workspace root (if present)
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
