@@ -107,6 +107,7 @@ uv run ruff check src/ tests/ && uv run mypy src/ && uv run pytest
 - **Plugin isolation is mandatory** (ADR-004, ADR-006). Plugins never share execution contexts, access each other's state, or reference Core internals.
 - **Execution contexts are ephemeral** (ADR-006). Always provision before execution and destroy in a `finally` block.
 - **Lifecycle transitions are strictly sequential** (ADR-003). No skipping states. The registry enforces this.
+- **Pipeline guards are mandatory.** The orchestrator enforces artifact existence, syntax validity, and test execution between pipeline steps. Any new pipeline step must have corresponding guards in `src/governance/pipeline_guards.py`.
 
 ---
 

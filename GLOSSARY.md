@@ -69,6 +69,12 @@ Workflows that are not strictly sequential; they may branch, run in parallel, an
 ## Platform API
 Programmatic interface exposed by the platform for **external callers** to submit workflow definitions, query execution status, and control workflow execution. It is the public-facing endpoint of the system.
 
+## Pipeline Gate Error
+Custom exception (`PipelineGateError`) raised when one or more pipeline guards fail at a step boundary. Contains the step name and list of error descriptions. Defined in `src/governance/pipeline_errors.py`.
+
+## Pipeline Guards
+Post-step validation functions executed by the orchestrator between pipeline steps (Developer → Tester → Reviewer). Guards verify that claimed artifacts exist on disk, pass syntax checks, and match git state. They prevent hallucinated implementations from advancing through the agentic development lifecycle. Defined in `src/governance/pipeline_guards.py`.
+
 ## Plugin
 Independent component implementing one of the extensibility points (Trigger, Condition, Transformer, Action) and conforming to defined contracts.
 

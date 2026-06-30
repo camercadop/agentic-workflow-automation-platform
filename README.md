@@ -43,6 +43,7 @@ These components embody the architectural principles defined in the ADRs and for
 - **Execution Context (ADR-006)**: Per‑execution context instance isolation boundary that encapsulates memory, threads, and sandbox scopes. Ensures complete isolation even within the same workflow.
 - **Build‑Time Validation Framework (ADR‑009)**: Enforces architectural compliance through gates (Manifest, Contract, Security, Context, Workflow) before deployment.
 - **Execution Policies**: Per-node retry, timeout, and error handling strategies that provide resilience during workflow execution.
+- **Pipeline Guards**: Post-step validation functions that verify artifact existence, syntax correctness, test execution, and report-to-git consistency before allowing the pipeline to advance.
 
 ### System Structure
 | Layer | Responsibility | ADR Reference |
@@ -116,6 +117,7 @@ Clear architectural boundaries separate plugin execution from core governance.
 ├── src/
 │   ├── core/          # Core Engine (registry, lifecycle, orchestration, bootstrap)
 │   ├── plugins/       # Plugin implementations (triggers, conditions, transformers, actions)
+│   ├── governance/    # Validation gates (ADR-009) and pipeline guards
 │   ├── models/        # SQLModel persistence models
 │   ├── repositories/  # Repository pattern for data access
 │   ├── api/           # FastAPI application (routes, schemas, errors)
@@ -127,8 +129,15 @@ Clear architectural boundaries separate plugin execution from core governance.
 ├── docs/
 │   ├── adr/           # Architectural Decision Records
 │   ├── architecture/  # C4 diagrams, domain model, vision
-│   ├── tasks/         # Task documents (agentic process)
-│   └── reports/       # Implementation and review reports
+│   └── tasks/         # Per-task directories (agentic process)
+│       ├── 0001/      # Task 1 artifacts
+│       │   ├── task.md
+│       │   ├── implementation.md
+│       │   └── review.md
+│       ├── 0002/      # Task 2 artifacts (etc.)
+│       ├── TASK_TEMPLATE.md
+│       ├── IMPLEMENTATION_REPORT_TEMPLATE.md
+│       └── REVIEW_REPORT_TEMPLATE.md
 ├── pyproject.toml     # Project config, dependencies, tool settings
 └── uv.lock            # Lockfile
 ```
@@ -143,7 +152,7 @@ The `scripts/orchestrator.py` CLI provides semi-automatic orchestration of AI ag
 # Run the full agentic pipeline for a requirement
 uv run python scripts/orchestrator.py run "Create a RegexCondition plugin"
 
-# Dry run (no file writes)
+# Dry run (no file writes, enables DEBUG logging)
 uv run python scripts/orchestrator.py run --dry-run "Add a TimerTrigger plugin"
 
 # Skip manual confirmations (for CI)
@@ -151,6 +160,15 @@ uv run python scripts/orchestrator.py run --auto-approve "Add logging transforme
 
 # Skip architect review step
 uv run python scripts/orchestrator.py run --skip-architect "Fix typo in README"
+
+# Resume a failed/incomplete task (auto-detects last completed step)
+uv run python scripts/orchestrator.py resume 1
+
+# Resume from a specific step (e.g. retry from Developer step)
+uv run python scripts/orchestrator.py resume 1 --from-step 3
+
+# Resume without manual confirmations
+uv run python scripts/orchestrator.py resume 1 --auto-approve
 
 # Check status of all tasks
 uv run python scripts/orchestrator.py status
@@ -162,8 +180,37 @@ uv run python scripts/orchestrator.py validate
 | Command    | Description                                          |
 |------------|------------------------------------------------------|
 | `run`      | Execute the full pipeline (plan → architect → dev → test → review → merge) |
+| `resume`   | Resume a failed/incomplete task from where it left off |
 | `status`   | Show task history and review states                  |
 | `validate` | Run structural quality gates against the workspace   |
+
+#### Resume Behavior
+
+The `resume` command auto-detects the last completed step by checking for existing artifacts in the per-task directory (`docs/tasks/NNNN/`):
+
+| Artifact exists | Inferred last completed step |
+|-----------------|------------------------------|
+| `task.md` only | Step 1 (Planner) |
+| + `implementation.md` | Step 3 (Developer) |
+| + `review.md` (not approved) | Step 4 (Tester) |
+| + `review.md` (approved) | Step 5 (Reviewer) |
+
+Use `--from-step N` to override auto-detection and force re-execution from a specific step.
+
+#### Pipeline Guards
+
+The orchestrator enforces **pipeline guards** between steps to prevent phantom implementations from advancing. If the Developer agent claims to create files that don't exist on disk, or if tests fail, the pipeline is blocked with actionable error messages and a resume command.
+
+Guards run automatically at these boundaries:
+- **Post-Developer**: Artifact existence, path validation, syntax validation
+- **Post-Tester**: Actual test execution (runs `pytest`)
+- **Pre-Reviewer**: Reviewer precondition, report-to-git consistency
+
+See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md#pipeline-guards) for full details.
+
+#### Logging
+
+The orchestrator uses Python's `logging` module for structured operational output (separate from the Rich console UI). Logs include timing per step, agent invocation details, quality gate results, and decision audit trails. Dry-run mode (`--dry-run`) enables DEBUG-level logging for deeper visibility.
 
 ## Development Setup
 

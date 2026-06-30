@@ -22,6 +22,10 @@
 | `repositories/` | Repository pattern for CRUD data access | — |
 | `api/routes/` | FastAPI route handlers | — |
 | `api/schemas/` | Pydantic request/response schemas | — |
+| `governance/engine.py` | Validation Engine: orchestrates gates and produces reports | ADR-009 |
+| `governance/gates.py` | Build-time validation gates (Manifest, Contract, Security, Context, Workflow) | ADR-009 |
+| `governance/pipeline_guards.py` | Pipeline guards: artifact existence, syntax, test execution, git consistency | — |
+| `governance/pipeline_errors.py` | `PipelineGateError` exception for guard failures | — |
 
 ---
 
@@ -336,6 +340,51 @@ flowchart TD
 - **Plugin isolation is mandatory.** Plugins never share execution contexts, access each other's state, or reference Core internals.
 - **Contexts are ephemeral.** Always provision before execution and destroy in a `finally` block after execution.
 - **Lifecycle transitions are sequential.** No skipping states. The registry enforces this.
+- **Pipeline guards are mandatory.** The orchestrator enforces artifact existence, syntax validity, and test execution between pipeline steps. No phantom implementations can advance past the Developer step.
+
+---
+
+## Pipeline Guards
+
+The `governance/pipeline_guards.py` module enforces integrity between orchestrator pipeline steps. Guards prevent hallucinated outputs, phantom files, and inconsistent reports from advancing through the agentic development lifecycle.
+
+### Guard Execution Points
+
+```
+Step 3 (Developer) ─▶ [artifact_existence, path_validation, syntax_validation] ─▶ Step 4
+Step 4 (Tester)    ─▶ [test_execution (runs pytest)]                           ─▶ Step 5
+Step 5 (Reviewer)  ◀─ [reviewer_precondition, report_git_consistency]          ◀─ Start
+```
+
+### Guard Priorities
+
+| Priority | Guard | What it catches |
+|----------|-------|----------------|
+| P0 | `verify_artifacts_exist` | Files claimed but never written to disk |
+| P0 | `verify_tests_pass` | Fake test coverage claims |
+| P1 | `verify_report_matches_git` | Report-to-filesystem inconsistencies |
+| P1 | `verify_reviewer_precondition` | Reviewing non-existent code |
+| P2 | `verify_syntax` | Invalid generated Python code |
+| P2 | `verify_paths_valid` | Path traversal, unauthorized locations, duplicates |
+
+### Using Guards Programmatically
+
+```python
+from src.governance.pipeline_guards import run_all_guards_for_step
+
+implementation = {
+    "files_created": ["src/plugins/my_plugin.py"],
+    "files_modified": [],
+}
+
+# Returns list of (guard_name, errors) tuples; empty = all passed
+failures = run_all_guards_for_step("developer", implementation, workspace)
+if failures:
+    for guard_name, errors in failures:
+        print(f"  {guard_name}: {errors}")
+```
+
+The orchestrator calls `_run_pipeline_guards()` which raises `PipelineGateError` on failure, blocking the pipeline and printing a resume command.
 
 ---
 

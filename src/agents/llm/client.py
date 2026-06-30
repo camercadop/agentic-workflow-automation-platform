@@ -6,7 +6,7 @@ any endpoint that implements the chat completions interface.
 Configuration via environment variables:
     LLM_API_KEY:       API key for the provider (required)
     LLM_BASE_URL:      Base URL of the API (default: https://openrouter.ai/api/v1)
-    LLM_MODEL:         Model identifier (default: anthropic/claude-sonnet-4-20250514)
+    LLM_MODEL:         Model identifier (default: openrouter/free)
     LLM_MAX_TOKENS:    Max response tokens (default: 4096)
     LLM_TEMPERATURE:   Sampling temperature (default: 0.3)
 """
@@ -22,7 +22,7 @@ from openai import OpenAI, OpenAIError
 _PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
 _DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
-_DEFAULT_MODEL = "anthropic/claude-sonnet-4-20250514"
+_DEFAULT_MODEL = "openrouter/free"
 
 
 class LLMClient:
