@@ -128,7 +128,8 @@ def execute_write_file(path: str, content: str) -> str:
                     f"Warning: File written but has syntax error "
                     f"at line {e.lineno}: {e.msg}"
                 )
-        _WRITTEN_FILES.append(path)
+        if path not in _WRITTEN_FILES:
+            _WRITTEN_FILES.append(path)
         logger.info("Tool write_file: wrote %d bytes to %s", len(content), path)
         return f"Successfully wrote {len(content)} bytes to {path}"
     except (ValueError, OSError) as e:

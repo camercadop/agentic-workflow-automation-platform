@@ -721,7 +721,7 @@ def run(
 
     # Prefer actual tool-tracked writes over LLM claims
     if actual_written:
-        files_created = actual_written
+        files_created = list(dict.fromkeys(actual_written))
         if claimed_created and set(claimed_created) != set(actual_written):
             logger.warning(
                 "LLM claimed files_created=%s but tool tracker recorded=%s",
@@ -733,7 +733,7 @@ def run(
                 "— using tool tracker as source of truth[/yellow]"
             )
     elif claimed_created:
-        files_created = claimed_created
+        files_created = list(dict.fromkeys(claimed_created))
     else:
         files_created = []
         console.print(
@@ -1246,7 +1246,9 @@ def resume(
 
         # Prefer actual tool-tracked writes over LLM claims
         if actual_written:
-            files_created = actual_written
+            files_created = list(
+                dict.fromkeys(actual_written)
+            )  # deduplicate, preserve order
             if claimed_created and set(claimed_created) != set(actual_written):
                 logger.warning(
                     "LLM claimed files_created=%s but tool tracker recorded=%s",
@@ -1254,7 +1256,7 @@ def resume(
                     actual_written,
                 )
         elif claimed_created:
-            files_created = claimed_created
+            files_created = list(dict.fromkeys(claimed_created))
         else:
             files_created = []
 

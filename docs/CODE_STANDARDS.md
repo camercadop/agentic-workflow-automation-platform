@@ -8,6 +8,7 @@
 ## Language & Runtime
 
 - **Python 3.12+** — use modern syntax (`type` aliases, `X | Y` unions, `StrEnum`)
+- **No deprecated `typing` generics** — do NOT use `typing.List`, `typing.Dict`, `typing.Tuple`, `typing.Set`, `typing.Optional`, or `typing.Union`. Use built-in generics (`list[X]`, `dict[K, V]`, `tuple[X, ...]`, `set[X]`) and `X | None` / `X | Y` union syntax instead
 - **Strict type hints everywhere** — all function signatures, return types, and class attributes must be annotated
 - **No `Any` unless unavoidable** — prefer specific types; use `dict[str, Any]` only for plugin data payloads
 
@@ -271,6 +272,7 @@ Use `StrEnum` for serializable enums, `@dataclass(frozen=True, slots=True)` for 
 - No relative imports (`from .contracts import ...` is not used)
 - Group: stdlib → third-party → local (ruff `I` rule enforces this)
 - Use `from __future__ import annotations` only when needed for forward references
+- Never import deprecated generics from `typing` (`List`, `Dict`, `Tuple`, `Set`, `Optional`, `Union`) — use built-in equivalents
 
 ---
 
