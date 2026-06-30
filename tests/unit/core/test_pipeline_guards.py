@@ -202,14 +202,32 @@ class TestVerifyPathsValid:
         assert len(errors) == 1
         assert "not under an expected directory" in errors[0]
 
-    def test_duplicate_paths(self, tmp_path: Path) -> None:
+    def test_exact_duplicate_paths_are_deduplicated(self, tmp_path: Path) -> None:
+        """Exact-string duplicates are silently deduplicated (not errors)."""
         errors = verify_paths_valid(
             files_created=["src/foo.py", "src/foo.py"],
             files_modified=[],
             workspace=tmp_path,
         )
-        assert len(errors) == 1
-        assert "Duplicate" in errors[0]
+        assert len(errors) == 0
+
+    def test_ambiguous_paths_detected(self, tmp_path: Path) -> None:
+        """Different path strings resolving to the same file are flagged."""
+        errors = verify_paths_valid(
+            files_created=["src/foo.py", "./src/foo.py"],
+            files_modified=[],
+            workspace=tmp_path,
+        )
+        assert any("Ambiguous paths" in e for e in errors)
+
+    def test_same_path_in_created_and_modified_is_ok(self, tmp_path: Path) -> None:
+        """Same path in both created and modified lists is deduplicated."""
+        errors = verify_paths_valid(
+            files_created=["src/foo.py"],
+            files_modified=["src/foo.py"],
+            workspace=tmp_path,
+        )
+        assert len(errors) == 0
 
     def test_path_traversal_blocked(self, tmp_path: Path) -> None:
         errors = verify_paths_valid(
