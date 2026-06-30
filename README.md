@@ -1,6 +1,6 @@
 # agentic-workflow-automation-platform
 
-> **Status:** Phases 1–4 complete (Core Engine, Persistence, API Layer, Execution Policies). Phase 5 (Agent Infrastructure) **next**.
+> **Status:** Phases 1–5 complete (Core Engine, Persistence, API Layer, Execution Policies, Agent Infrastructure).
 >
 > The architecture documentation (ADRs and C4 diagrams) remains the authoritative source of truth.
 
@@ -118,6 +118,11 @@ Clear architectural boundaries separate plugin execution from core governance.
 │   ├── core/          # Core Engine (registry, lifecycle, orchestration, bootstrap)
 │   ├── plugins/       # Plugin implementations (triggers, conditions, transformers, actions)
 │   ├── governance/    # Validation gates (ADR-009) and pipeline guards
+│   ├── agents/        # Agent infrastructure (LLM client, tools, prompts)
+│   │   ├── llm/      # LLM client (single-shot + tool-calling loop)
+│   │   ├── prompts/  # Per-agent system prompts
+│   │   ├── skills/   # Skill documentation (referenced by prompts)
+│   │   └── definitions/ # Agent role definitions
 │   ├── models/        # SQLModel persistence models
 │   ├── repositories/  # Repository pattern for data access
 │   ├── api/           # FastAPI application (routes, schemas, errors)
@@ -179,7 +184,7 @@ uv run python scripts/orchestrator.py validate
 
 | Command    | Description                                          |
 |------------|------------------------------------------------------|
-| `run`      | Execute the full pipeline (plan → architect → dev → test → review → merge) |
+| `run`      | Execute the full pipeline (plan → architect → dev → test → review) |
 | `resume`   | Resume a failed/incomplete task from where it left off |
 | `status`   | Show task history and review states                  |
 | `validate` | Run structural quality gates against the workspace   |
@@ -197,14 +202,18 @@ The `resume` command auto-detects the last completed step by checking for existi
 
 Use `--from-step N` to override auto-detection and force re-execution from a specific step.
 
+When resuming from Step 3 (Developer), if a previous `review.md` exists with findings, those findings are automatically included in the developer's context. This creates a feedback loop where the developer addresses reviewer concerns directly.
+
 #### Pipeline Guards
 
 The orchestrator enforces **pipeline guards** between steps to prevent phantom implementations from advancing. If the Developer agent claims to create files that don't exist on disk, or if tests fail, the pipeline is blocked with actionable error messages and a resume command.
 
 Guards run automatically at these boundaries:
 - **Post-Developer**: Artifact existence, path validation, syntax validation
-- **Post-Tester**: Actual test execution (runs `pytest`)
+- **Post-Tester**: Actual test execution (runs `pytest`), real coverage measurement via `pytest-cov`
 - **Pre-Reviewer**: Reviewer precondition, report-to-git consistency
+
+After tests pass, the orchestrator measures actual test coverage by running pytest with `--cov-report=json` and extracting the total percentage. This real value is passed to quality gates and the reviewer.
 
 See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md#pipeline-guards) for full details.
 
@@ -307,8 +316,27 @@ flowchart TD
     C --> D[DeveloperAgent]
     D --> E[TesterAgent]
     E --> F[ReviewerAgent]
-    F --> G[Merge]
+    F -->|approved| G[Done]
+    F -->|request_changes| D
 ```
+
+### Agent Tool-Calling
+
+The Developer, Tester, and Reviewer agents use an agentic tool-calling loop to interact with the codebase. Instead of producing text-only responses, they can:
+
+- **Read files** to understand existing patterns
+- **Write files** to create source code and tests
+- **List directories** to explore the project structure
+- **Run commands** to validate with ruff, mypy, and pytest
+
+The LLM client (`src/agents/llm/client.py`) implements the loop: send message with tool schemas → execute tool calls → feed results back → repeat until the agent produces a final text response.
+
+Tools are sandboxed: writes are restricted to `src/`, `tests/`, `docs/`; commands are allowlisted; path traversal is blocked.
+
+The Reviewer agent receives the full source code of created/modified files in its prompt context, ensuring findings are grounded in actual code rather than hallucinated.
+
+See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md#agent-infrastructure) for full details.
+
 ## Architecture Documentation
 
 - **ADR Index**: [`/docs/adr/`](docs/adr/) – all Architectural Decision Records

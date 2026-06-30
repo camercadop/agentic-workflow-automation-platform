@@ -118,3 +118,30 @@ uv run ruff check src/ tests/ && uv run mypy src/ && uv run pytest
 3. Create `tests/unit/test_<module>.py` with class-grouped tests (see [`docs/TESTING.md`](docs/TESTING.md)).
 4. Run all checks: `uv run ruff check src/ tests/ && uv run mypy src/ && uv run pytest`.
 5. Update `docs/DEVELOPER_GUIDE.md` if the module introduces new patterns or public APIs.
+
+---
+
+## Adding a New Agent Tool
+
+Agent tools live in `src/agents/llm/tools.py` and follow this pattern:
+
+1. Add an OpenAI-compatible tool schema to `TOOL_SCHEMAS`.
+2. Implement the executor function with signature `def execute_<name>(...) -> str`.
+3. Register it in `_TOOL_EXECUTORS`.
+4. Add safety guards:
+   - Path validation (reject traversal, restrict to allowed prefixes)
+   - Command allowlisting (if the tool runs commands)
+   - Output truncation (prevent massive responses)
+5. Update relevant agent system prompts in `src/agents/prompts/` to document the new tool.
+6. Update `docs/DEVELOPER_GUIDE.md` Agent Infrastructure section.
+
+---
+
+## Modifying Agent Prompts
+
+Agent prompts are in `src/agents/prompts/{agent_name}_system_prompt.md`. When modifying:
+
+- **Tool-enabled agents** (developer, tester): Ensure the prompt lists available tools, defines a workflow, and specifies the final JSON output format.
+- **Single-shot agents** (planner, architect, reviewer): Ensure the prompt defines the expected JSON response schema.
+- Keep prompts aligned with what the orchestrator expects to parse (see `parse_json_response` in `client.py`).
+- Never promise capabilities the infrastructure doesn't support (e.g., don't mention tools in a single-shot agent's prompt).

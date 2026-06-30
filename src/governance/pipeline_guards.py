@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import ast
 import logging
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -85,6 +86,17 @@ def verify_tests_pass(workspace: Path, timeout: int = 120) -> list[str]:
         List of error strings if tests fail or cannot be run.
     """
     errors: list[str] = []
+    # Load test env overrides from .env.test to prevent external dependencies
+    env = os.environ.copy()
+    env_test_path = workspace / ".env.test"
+    if env_test_path.exists():
+        for line in env_test_path.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                env[key.strip()] = value.strip()
     try:
         result = subprocess.run(
             ["uv", "run", "pytest", "--tb=short", "-q", "--no-header"],
@@ -92,6 +104,7 @@ def verify_tests_pass(workspace: Path, timeout: int = 120) -> list[str]:
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
         if result.returncode != 0:
             # Extract last few lines for context
@@ -110,6 +123,76 @@ def verify_tests_pass(workspace: Path, timeout: int = 120) -> list[str]:
         errors.append("'uv' command not found — cannot execute tests")
         logger.error("uv command not found")
     return errors
+
+
+def measure_test_coverage(workspace: Path, timeout: int = 120) -> float:
+    """Run pytest with coverage and return the total coverage percentage.
+
+    Generates a JSON coverage report and extracts the total line coverage.
+    If coverage cannot be measured, returns 0.0.
+
+    Args:
+        workspace: Project root directory.
+        timeout: Maximum seconds to wait for test execution.
+
+    Returns:
+        Total coverage percentage as a float (0.0–100.0).
+    """
+    import json as json_mod
+
+    cov_json_path = workspace / "coverage.json"
+    # Clean up any pre-existing coverage report
+    if cov_json_path.exists():
+        cov_json_path.unlink()
+
+    env = os.environ.copy()
+    env_test_path = workspace / ".env.test"
+    if env_test_path.exists():
+        for line in env_test_path.read_text().splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" in line:
+                key, _, value = line.partition("=")
+                env[key.strip()] = value.strip()
+
+    try:
+        subprocess.run(
+            [
+                "uv",
+                "run",
+                "pytest",
+                "--cov=src",
+                "--cov-report=json:coverage.json",
+                "--no-header",
+                "-q",
+            ],
+            cwd=str(workspace),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.warning("Coverage measurement failed: %s", e)
+        return 0.0
+
+    if not cov_json_path.exists():
+        logger.warning("Coverage JSON report not generated at %s", cov_json_path)
+        return 0.0
+
+    try:
+        cov_data = json_mod.loads(cov_json_path.read_text())
+        total_coverage = cov_data.get("totals", {}).get("percent_covered", 0.0)
+        logger.info("Measured test coverage: %.1f%%", total_coverage)
+        return float(total_coverage)
+    except (json_mod.JSONDecodeError, KeyError, TypeError) as e:
+        logger.warning("Failed to parse coverage JSON: %s", e)
+        return 0.0
+    finally:
+        # Clean up the generated report
+        if cov_json_path.exists():
+            cov_json_path.unlink()
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +379,12 @@ def verify_paths_valid(
     Detects:
       - Paths that escape the project root (e.g., ../../../etc/passwd)
       - Paths not under recognized top-level directories
-      - Inconsistent paths pointing to the same logical location
+      - Different path strings pointing to the same logical location
+        (e.g., './src/foo.py' vs 'src/foo.py')
+
+    Note: Exact-string duplicates (same file in both created and modified)
+    are deduplicated before validation, since agents may legitimately
+    report the same path in both lists.
 
     Args:
         files_created: Paths claimed as created.
@@ -307,7 +395,9 @@ def verify_paths_valid(
         List of error strings for invalid paths.
     """
     errors: list[str] = []
-    all_paths = files_created + files_modified
+
+    # Deduplicate exact-string matches (same path in both lists is not an error)
+    all_paths = list(dict.fromkeys(files_created + files_modified))
 
     if not all_paths:
         errors.append("Implementation declares no files created or modified")
@@ -334,12 +424,15 @@ def verify_paths_valid(
                 f"({', '.join(_ALLOWED_PREFIXES)})"
             )
 
-        # Detect duplicates that resolve to same location
+        # Detect different path strings that resolve to the same location
+        # (e.g., './src/foo.py' vs 'src/foo.py')
         if resolved in seen_resolved:
-            errors.append(
-                f"Duplicate path detected: '{file_path}' resolves to same "
-                f"location as '{seen_resolved[resolved]}'"
-            )
+            existing_path = seen_resolved[resolved]
+            if existing_path != file_path:
+                errors.append(
+                    f"Ambiguous paths: '{file_path}' and '{existing_path}' "
+                    f"resolve to the same location"
+                )
         else:
             seen_resolved[resolved] = file_path
 

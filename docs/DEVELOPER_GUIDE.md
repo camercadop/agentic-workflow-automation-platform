@@ -26,6 +26,9 @@
 | `governance/gates.py` | Build-time validation gates (Manifest, Contract, Security, Context, Workflow) | ADR-009 |
 | `governance/pipeline_guards.py` | Pipeline guards: artifact existence, syntax, test execution, git consistency | — |
 | `governance/pipeline_errors.py` | `PipelineGateError` exception for guard failures | — |
+| `agents/llm/client.py` | Provider-agnostic LLM client with single-shot and tool-calling modes | ADR-008 |
+| `agents/llm/tools.py` | Tool schemas (OpenAI function-calling format) and sandboxed executors | ADR-008 |
+| `agents/prompts/` | Per-agent system prompts that define behavior, available tools, and output format | ADR-008 |
 
 ---
 
@@ -333,6 +336,95 @@ flowchart TD
 
 ---
 
+## Agent Infrastructure
+
+The platform uses specialized AI agents to drive the development lifecycle. Agents interact with the codebase through a tool-calling loop powered by the LLM client.
+
+### LLM Client
+
+The `src/agents/llm/client.py` module provides two invocation modes:
+
+| Method | Mode | Use case |
+|--------|------|----------|
+| `invoke(system_prompt, user_message)` | Single-shot | Agents that only produce text (planner, architect, reviewer) |
+| `invoke_with_tools(system_prompt, user_message, workspace)` | Tool-calling loop | Agents that need to read/write files and run commands (developer, tester) |
+
+The tool-calling loop works as follows:
+
+```mermaid
+flowchart TD
+    A[Send system + user message + tool schemas] --> B{LLM response}
+    B -- Text response --> C[Return final response]
+    B -- Tool calls --> D[Execute tools]
+    D --> E[Feed tool results back as messages]
+    E --> A
+```
+
+The loop runs up to 20 iterations (configurable via `MAX_TOOL_ITERATIONS`) before raising `LLMError`.
+
+### Available Tools
+
+Tool-enabled agents have access to four sandboxed tools defined in `src/agents/llm/tools.py`:
+
+| Tool | Description | Safety constraints |
+|------|-------------|--------------------|
+| `read_file(path)` | Read a file relative to workspace root | Path traversal prevention; 50KB truncation |
+| `write_file(path, content)` | Create or overwrite a file | Only under `src/`, `tests/`, `docs/`; auto syntax-check for `.py` |
+| `list_directory(path)` | List directory contents | Skips hidden dirs and `__pycache__` |
+| `run_command(command)` | Execute a shell command | Allowlist: only `ruff`, `mypy`, `pytest`, `cat`, `grep`, `find`, `ls` |
+
+All paths are resolved against the workspace root. Path traversal (`../`) is rejected.
+
+### Agent Roles and Tool Access
+
+The orchestrator (`scripts/orchestrator.py`) automatically selects the invocation mode based on agent role:
+
+| Agent | Mode | Reason |
+|-------|------|--------|
+| `planner` | Single-shot | Produces structured plans (JSON) |
+| `architect` | Single-shot | Reviews for ADR alignment |
+| `developer` | Tool-calling | Must explore code, write files, run validation |
+| `tester` | Tool-calling | Must write test files and execute pytest |
+| `reviewer` | Tool-calling | Reads source files and produces grounded findings |
+
+### Writing Agent Prompts
+
+System prompts live in `src/agents/prompts/{agent_name}_system_prompt.md`. For tool-enabled agents:
+
+1. **List available tools explicitly** — Tell the model what tools it has and their signatures
+2. **Define a workflow** — Describe the expected sequence (explore → implement → validate)
+3. **Specify final output format** — After tool use, what JSON structure to return
+4. **Reference project conventions** — Plugin patterns, test structure, coding style
+
+For single-shot agents:
+1. **Define the response format** — JSON schema with required fields
+2. **Set clear boundaries** — What to include/exclude
+3. **Reference ADRs** — Which architectural constraints apply
+
+### Configuration
+
+Set these environment variables (or in `.env`):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_API_KEY` | — (required) | API key for the LLM provider |
+| `LLM_BASE_URL` | `https://openrouter.ai/api/v1` | API base URL |
+| `LLM_MODEL` | `openrouter/free` | Model identifier (must support function-calling) |
+| `LLM_MAX_TOKENS` | `4096` | Maximum response tokens per call |
+| `LLM_TEMPERATURE` | `0.3` | Sampling temperature |
+
+> **Important:** The model must support OpenAI-compatible function calling (tool_calls). Models that lack this capability will fail in tool-calling mode.
+
+### Adding a New Tool
+
+1. Add the tool schema to `TOOL_SCHEMAS` in `src/agents/llm/tools.py`
+2. Implement the executor function (`execute_<tool_name>`)
+3. Register it in `_TOOL_EXECUTORS`
+4. Update agent prompts to mention the new tool
+5. Add appropriate safety guards (path validation, command allowlisting)
+
+---
+
 ## Architecture Constraints
 
 - **ADRs are authoritative.** If code conflicts with an ADR, the ADR wins. Update the code.
@@ -362,10 +454,48 @@ Step 5 (Reviewer)  ◀─ [reviewer_precondition, report_git_consistency]       
 |----------|-------|----------------|
 | P0 | `verify_artifacts_exist` | Files claimed but never written to disk |
 | P0 | `verify_tests_pass` | Fake test coverage claims |
+| P0 | `measure_test_coverage` | Actual coverage measurement via pytest-cov JSON report |
 | P1 | `verify_report_matches_git` | Report-to-filesystem inconsistencies |
 | P1 | `verify_reviewer_precondition` | Reviewing non-existent code |
 | P2 | `verify_syntax` | Invalid generated Python code |
 | P2 | `verify_paths_valid` | Path traversal, unauthorized locations, duplicates |
+
+### Test Coverage Measurement
+
+After the tester guards confirm tests pass, the orchestrator measures actual test coverage using `measure_test_coverage()`. This function:
+
+1. Runs `pytest --cov=src --cov-report=json:coverage.json`
+2. Parses the generated JSON report to extract `totals.percent_covered`
+3. Returns the real coverage percentage (0.0–100.0)
+4. Cleans up the generated report file
+
+The measured coverage is stored in `implementation["test_coverage"]` and passed to both the quality gates (which enforce an 80% minimum) and the reviewer context.
+
+```python
+from src.governance.pipeline_guards import measure_test_coverage
+
+coverage = measure_test_coverage(workspace)
+# Returns e.g. 87.5 (percent)
+```
+
+### Reviewer–Developer Feedback Loop
+
+When a reviewer requests changes and the pipeline is resumed from the Developer step (step 3), the orchestrator automatically includes the reviewer's findings in the developer's context. This enables a closed feedback loop:
+
+```
+Reviewer (request_changes) → Developer (reads findings, fixes code) → Tester → Reviewer
+```
+
+The developer receives:
+- The original task objective and plan
+- The full `review.md` content (findings + suggested improvements)
+- Explicit instructions to address all findings
+
+This prevents the developer from repeating the same mistakes and ensures reviewer feedback is actionable.
+
+### Reviewer Source Code Context
+
+The reviewer agent receives the actual file contents of all created/modified files in its prompt, formatted as fenced code blocks. This prevents hallucinated findings (e.g., claiming a feature is missing when it exists in the code). The reviewer is also a tool-enabled agent, so it can read additional files if needed.
 
 ### Using Guards Programmatically
 

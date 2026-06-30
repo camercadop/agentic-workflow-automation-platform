@@ -1,0 +1,74 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "read_file",
+      "description": "Read the contents of a file at the given path relative to the workspace root.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path to the file from workspace root."
+          }
+        },
+        "required": ["path"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "write_file",
+      "description": "Create or overwrite a file with the given content. Parent directories are created automatically.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path to the file from workspace root."
+          },
+          "content": {
+            "type": "string",
+            "description": "Full content to write to the file."
+          }
+        },
+        "required": ["path", "content"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "list_directory",
+      "description": "List files and directories at the given path relative to workspace root.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path to the directory from workspace root. Use '.' for root."
+          }
+        },
+        "required": ["path"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "run_command",
+      "description": "Run a shell command in the workspace. Use for linting (ruff), type checking (mypy), or running tests (pytest). Returns stdout, stderr, and exit code.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "command": {
+            "type": "string",
+            "description": "The shell command to execute."
+          }
+        },
+        "required": ["command"]
+      }
+    }
+  }
+]

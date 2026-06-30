@@ -56,8 +56,11 @@ from src.agents.llm.client import (  # noqa: E402
     load_system_prompt,
     parse_json_response,
 )
+from src.agents.llm.tools import get_written_files  # noqa: E402
+from src.agents.llm.tools import set_workspace as set_tool_workspace  # noqa: E402
 from src.governance.pipeline_errors import PipelineGateError  # noqa: E402
 from src.governance.pipeline_guards import (  # noqa: E402
+    measure_test_coverage,
     run_all_guards_for_step,
 )
 
@@ -331,6 +334,42 @@ def _get_next_task_number(workspace: Path) -> int:
     return max_num + 1
 
 
+def _build_file_contents_block(
+    file_paths: list[str], workspace: Path, max_chars: int = 50000
+) -> str:
+    """Read files from disk and format their contents for inclusion in prompts.
+
+    Args:
+        file_paths: Relative file paths to read.
+        workspace: Project root directory.
+        max_chars: Maximum total characters to include (prevents token overflow).
+
+    Returns:
+        Formatted string with file contents in fenced code blocks.
+    """
+    blocks: list[str] = []
+    total_chars = 0
+
+    for file_path in file_paths:
+        full_path = workspace / file_path
+        if not full_path.exists() or not full_path.is_file():
+            continue
+        try:
+            content = full_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        if total_chars + len(content) > max_chars:
+            blocks.append(f"### {file_path}\n(truncated — file too large)\n")
+            break
+
+        ext = full_path.suffix.lstrip(".")
+        blocks.append(f"### {file_path}\n```{ext}\n{content}\n```\n")
+        total_chars += len(content)
+
+    return "\n".join(blocks) if blocks else "(no file contents available)"
+
+
 def _save_markdown(path: Path, content: str) -> None:
     """Write markdown content to a file, creating parent directories as needed.
 
@@ -366,15 +405,27 @@ def _init_llm_client() -> LLMClient | None:
         return None
 
 
+# Agents that should use tool-calling (they need to read/write files)
+# The reviewer also uses tools to read source files for inspection.
+_TOOL_ENABLED_AGENTS = {"developer", "tester", "reviewer"}
+
+
 def _invoke_agent(
-    llm: LLMClient | None, agent_name: str, user_message: str
+    llm: LLMClient | None,
+    agent_name: str,
+    user_message: str,
+    workspace: Path = _DEFAULT_WORKSPACE,
 ) -> str | None:
     """Invoke an agent via the LLM, returning the response or None on failure.
+
+    Automatically uses tool-calling for agents that need file/command access
+    (developer, tester). Other agents use single-shot invocation.
 
     Args:
         llm: The LLM client instance (or None for static fallback).
         agent_name: Agent role name matching a prompt file.
         user_message: Context to send to the agent.
+        workspace: Workspace root for tool execution.
 
     Returns:
         The LLM response text, or None if unavailable.
@@ -388,11 +439,16 @@ def _invoke_agent(
         )
         return None
     msg_len = len(user_message)
+    use_tools = agent_name in _TOOL_ENABLED_AGENTS
+    mode = "with tools" if use_tools else "single-shot"
     console.print(
-        f"  [dim]Calling '{agent_name}' agent ({msg_len} chars context)...[/dim]"
+        f"  [dim]Calling '{agent_name}' agent ({msg_len} chars, {mode})...[/dim]"
     )
     logger.info(
-        "Invoking agent '%s' (message length: %d chars)", agent_name, len(user_message)
+        "Invoking agent '%s' (message length: %d chars, mode: %s)",
+        agent_name,
+        len(user_message),
+        mode,
     )
     start_time = time.monotonic()
     try:
@@ -400,7 +456,13 @@ def _invoke_agent(
         logger.debug(
             "Loaded system prompt for '%s' (%d chars)", agent_name, len(system_prompt)
         )
-        response = llm.invoke(system_prompt, user_message)
+        if use_tools:
+            set_tool_workspace(workspace)
+            response = llm.invoke_with_tools(
+                system_prompt, user_message, workspace=workspace
+            )
+        else:
+            response = llm.invoke(system_prompt, user_message)
         elapsed = time.monotonic() - start_time
         logger.info(
             "Agent '%s' responded in %.2fs (response length: %d chars)",
@@ -582,7 +644,7 @@ def run(
             skip_architect,
             task_doc["architect_review"],
         )
-        console.print("  [dim]Skipped (not required)[/dim]")
+        console.print("  [yellow]⏭ Skipped (not required)[/yellow]")
     else:
         console.print("  [yellow]Architect review required[/yellow]")
         architect_context = (
@@ -619,78 +681,86 @@ def run(
     developer_context = (
         f"Task: {objective}\nScope: {scope}\n"
         f"Plan: {json.dumps(plan)}\n\n"
-        "Implement this feature. Respond with a JSON object containing:\n"
-        '  - "files_created": array of file paths to create\n'
-        '  - "files_modified": array of file paths to modify\n'
+        "Implement this feature using the tools provided to you.\n"
+        "You MUST use write_file to create actual files on disk and "
+        "run_command to validate with ruff, mypy, and pytest.\n"
+        "Do NOT just output code in your response — use the write_file tool.\n\n"
+        "After completing all tool-based implementation, respond with a "
+        "JSON summary containing:\n"
+        '  - "files_created": array of relative file paths you wrote\n'
+        '  - "files_modified": array of relative file paths you modified\n'
         '  - "design_decisions": array of key decisions made\n'
-        '  - "code_snippets": object mapping file path to code content\n'
+        '  - "tests_passed": boolean indicating if pytest passed\n'
     )
     developer_response = _invoke_agent(llm, "developer", developer_context)
+
+    # Ground truth: files the agent actually wrote via write_file tool
+    actual_written = get_written_files()
 
     if developer_response:
         try:
             dev_data = parse_json_response(developer_response)
-            files_created = dev_data.get(
-                "files_created",
-                [f"src/plugins/task_{task_number}.py"],
-            )
+            claimed_created = dev_data.get("files_created", [])
             files_modified = dev_data.get("files_modified", [])
             design_decisions = dev_data.get("design_decisions", [])
-            console.print(f"  [dim]Files to create:[/dim] {files_created}")
-            console.print(f"  [dim]Files to modify:[/dim] {files_modified}")
-            if design_decisions:
-                console.print(
-                    f"  [dim]Design decisions ({len(design_decisions)}):[/dim]"
-                )
-                for dd in design_decisions[:3]:
-                    console.print(f"    [dim]• {str(dd)[:100]}[/dim]")
+            tests_passed = dev_data.get("tests_passed", False)
         except ValueError:
-            files_created = [f"src/plugins/task_{task_number}.py"]
+            claimed_created = []
             files_modified = []
+            design_decisions = []
+            tests_passed = False
             console.print(
                 "  [yellow]⚠ Could not parse developer"
-                " response, using defaults[/yellow]"
-            )
-            console.print(
-                f"  [dim]Raw response preview: {developer_response[:200]}...[/dim]"
+                " response, using tool tracker[/yellow]"
             )
     else:
-        files_created = [
-            f"src/plugins/task_{task_number}.py",
-            f"tests/unit/test_task_{task_number}.py",
-        ]
+        claimed_created = []
         files_modified = []
-        console.print("  [dim]Using default file list (no LLM response)[/dim]")
+        design_decisions = []
+        tests_passed = False
+
+    # Prefer actual tool-tracked writes over LLM claims
+    if actual_written:
+        files_created = actual_written
+        if claimed_created and set(claimed_created) != set(actual_written):
+            logger.warning(
+                "LLM claimed files_created=%s but tool tracker recorded=%s",
+                claimed_created,
+                actual_written,
+            )
+            console.print(
+                "  [yellow]⚠ LLM file list differs from actual writes "
+                "— using tool tracker as source of truth[/yellow]"
+            )
+    elif claimed_created:
+        files_created = claimed_created
+    else:
+        files_created = []
+        console.print(
+            "  [yellow]⚠ No files written by agent (no tool calls "
+            "and no parseable response)[/yellow]"
+        )
+
+    console.print(f"  [dim]Files created:[/dim] {files_created}")
+    console.print(f"  [dim]Files modified:[/dim] {files_modified}")
+    console.print(f"  [dim]Tests passed:[/dim] {tests_passed}")
+    if design_decisions:
+        console.print(f"  [dim]Design decisions ({len(design_decisions)}):[/dim]")
+        for dd in design_decisions[:3]:
+            console.print(f"    [dim]• {str(dd)[:100]}[/dim]")
 
     impl_created_at = datetime.now().isoformat()
     implementation: dict[str, Any] = {
         "task_number": task_number,
         "files_created": files_created,
         "files_modified": files_modified,
-        "tests_written": True,
-        "linting_passed": True,
-        "type_checking_passed": True,
-        "test_coverage": 85,
+        "tests_written": any("tests/" in f for f in files_created),
+        "linting_passed": False,
+        "type_checking_passed": False,
+        "test_coverage": 0,
         "created_at": impl_created_at,
     }
     tracker.log("developer", "implement", implementation)
-
-    if not dry_run:
-        impl_content = (
-            f"# Implementation Report - Task {task_number}\n\n"
-            f"## Files Created\n"
-            + "\n".join(f"- {f}" for f in files_created)
-            + "\n\n## Files Modified\n"
-            + "\n".join(f"- {f}" for f in files_modified)
-            + "\n\n## Quality Score\n"
-            + f"- Tests Written: True\n- Created: {impl_created_at}\n"
-        )
-        if developer_response:
-            impl_content += f"\n## LLM Output\n\n{developer_response}\n"
-        _save_markdown(
-            _task_dir(workspace, task_number) / "implementation.md",
-            impl_content,
-        )
 
     # --- Post-Developer Guards (P0/P2) ---
     try:
@@ -707,6 +777,26 @@ def run(
         console.print(f"\n  [dim]Fix the issues and resume: {resume_cmd}[/dim]")
         raise typer.Exit(code=1) from None
 
+    # Guards passed — now save the implementation report
+    if not dry_run:
+        impl_content = (
+            f"# Implementation Report - Task {task_number}\n\n"
+            f"## Files Created\n"
+            + "\n".join(f"- {f}" for f in files_created)
+            + "\n\n## Files Modified\n"
+            + "\n".join(f"- {f}" for f in files_modified)
+            + "\n\n## Quality Score\n"
+            + f"- Tests Written: {implementation['tests_written']}\n"
+            + f"- Tests Passed: {tests_passed}\n"
+            + f"- Created: {impl_created_at}\n"
+        )
+        if developer_response:
+            impl_content += f"\n## LLM Output\n\n```json\n{developer_response}\n```\n"
+        _save_markdown(
+            _task_dir(workspace, task_number) / "implementation.md",
+            impl_content,
+        )
+
     logger.info(
         "Step 3 completed in %.2fs: files_created=%s files_modified=%s",
         time.monotonic() - step_start,
@@ -719,11 +809,6 @@ def run(
     logger.info("--- Step 4: Tester ---")
     step_start = time.monotonic()
     console.print("\n[bold blue]Step 4: Tester[/bold blue]")
-    for gate_name, gate_fn in QUALITY_GATES.items():
-        passed, msg = gate_fn(implementation)
-        tracker.log_quality_gate(gate_name, passed, msg)
-        icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
-        console.print(f"  {icon} {msg}")
 
     # --- Post-Tester Guards (P0: actual test execution) ---
     try:
@@ -737,6 +822,20 @@ def run(
         )
         console.print(f"\n  [dim]Fix the issues and resume: {resume_cmd}[/dim]")
         raise typer.Exit(code=1) from None
+
+    # Measure actual test coverage after tests pass
+    if not dry_run:
+        actual_coverage = measure_test_coverage(workspace)
+        implementation["test_coverage"] = actual_coverage
+        console.print(f"  [dim]Measured coverage:[/dim] {actual_coverage:.1f}%")
+    else:
+        implementation["test_coverage"] = 0
+
+    for gate_name, gate_fn in QUALITY_GATES.items():
+        passed, msg = gate_fn(implementation)
+        tracker.log_quality_gate(gate_name, passed, msg)
+        icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
+        console.print(f"  {icon} {msg}")
 
     logger.info("Step 4 completed in %.2fs", time.monotonic() - step_start)
 
@@ -763,18 +862,26 @@ def run(
     all_gates_passed = all(r["passed"] for r in tracker.quality_gate_results)
     logger.info("All quality gates passed: %s", all_gates_passed)
 
+    # Build file contents for the reviewer to inspect directly
+    file_contents_block = _build_file_contents_block(
+        files_created + files_modified, workspace
+    )
     reviewer_context = (
         f"Task: {objective}\nScope: {scope}\n"
         f"Files created: {json.dumps(files_created)}\n"
         f"Files modified: {json.dumps(files_modified)}\n"
         f"Quality gates passed: {all_gates_passed}\n"
-        f"Test coverage: {implementation['test_coverage']}%\n\n"
-        "Review this implementation. Respond with a JSON object containing:\n"
+        f"Test coverage: {implementation['test_coverage']:.1f}%\n\n"
+        f"## Source Code\n{file_contents_block}\n\n"
+        "Review this implementation. You MUST base your findings on the actual "
+        "source code provided above. Do NOT hallucinate missing features that "
+        "are present in the code.\n\n"
+        "Respond with a JSON object containing:\n"
         '  - "decision": one of "approved", "request_changes", "rejected"\n'
-        '  - "findings": array of issues or observations\n'
+        '  - "findings": array of issues or observations (cite specific lines)\n'
         '  - "suggested_improvements": array of recommendations\n'
     )
-    reviewer_response = _invoke_agent(llm, "reviewer", reviewer_context)
+    reviewer_response = _invoke_agent(llm, "reviewer", reviewer_context, workspace)
 
     if reviewer_response:
         try:
@@ -831,32 +938,24 @@ def run(
         f"  Status: [{'green' if all_gates_passed else 'red'}]{review_status}[/]"
     )
 
-    # Step 6: Merge
-    logger.info("--- Step 6: Merge ---")
-    console.print("\n[bold blue]Step 6: Merge[/bold blue]")
+    # Pipeline complete
+    total_elapsed = time.monotonic() - pipeline_start
     if review_status != "approved":
-        logger.warning("Merge blocked: review_status=%s", review_status)
+        logger.warning("Pipeline ended: review_status=%s", review_status)
         console.print(
-            f"  [red]✗ Cannot merge — review returned '{review_status}'[/red]"
+            f"\n  [red]✗ Review returned '{review_status}' — "
+            "run resume --from-step 3 to fix[/red]"
         )
-        console.print(
-            f"  [dim]To retry: uv run python scripts/orchestrator.py resume "
-            f"{task_number} --from-step 5[/dim]"
+        resume_cmd = (
+            f"uv run python scripts/orchestrator.py resume {task_number} --from-step 3"
         )
+        console.print(f"  [dim]{resume_cmd}[/dim]")
         raise typer.Exit(code=1) from None
 
-    if not auto_approve:
-        typer.confirm("  Approve merge?", abort=True)
-
-    tracker.log_decision("merge_approved", "Human approved merge", "human")
-    total_elapsed = time.monotonic() - pipeline_start
     logger.info(
         "=== Pipeline completed successfully in %.2fs (task=%d) ===",
         total_elapsed,
         task_number,
-    )
-    console.print(
-        f"  [green]✓[/green] Merged to branch [bold]agentic-task-{task_number}[/bold]"
     )
     console.print(
         Panel(
@@ -890,11 +989,11 @@ def _detect_completed_step(task_number: int, workspace: Path) -> int:
     if not task_file.exists():
         return 0
 
-    # Check if merge was completed (review approved = step 6 done)
+    # Check if review was completed
     if review_file.exists():
         content = review_file.read_text()
         if "approved" in content.lower():
-            return 5  # Review done, merge pending
+            return 5  # Review approved → pipeline complete
         return 4  # Review exists but not approved → tester done
 
     if impl_file.exists():
@@ -957,8 +1056,8 @@ def resume(
 
     # Determine where to resume
     if from_step is not None:
-        if from_step < 1 or from_step > 6:
-            console.print("[red]Error: --from-step must be between 1 and 6[/red]")
+        if from_step < 1 or from_step > 5:
+            console.print("[red]Error: --from-step must be between 1 and 5[/red]")
             raise typer.Exit(code=1) from None
         last_completed = from_step - 1
         logger.info("Forced resume from step %d (--from-step)", from_step)
@@ -966,7 +1065,7 @@ def resume(
         last_completed = _detect_completed_step(task_number, workspace)
         logger.info("Auto-detected last completed step: %d", last_completed)
 
-    if last_completed >= 6:
+    if last_completed >= 5:
         console.print(f"[green]Task {task_number} is already fully completed.[/green]")
         raise typer.Exit()
 
@@ -1017,7 +1116,7 @@ def resume(
         needs_review = _needs_architect_review(objective, scope)
         if skip_architect or not needs_review:
             logger.info("Architect review skipped")
-            console.print("  [dim]Skipped (not required)[/dim]")
+            console.print("  [yellow]⏭ Skipped (not required)[/yellow]")
         else:
             console.print("  [yellow]Architect review required[/yellow]")
             architect_context = (
@@ -1048,62 +1147,129 @@ def resume(
         logger.info("--- Step 3: Developer ---")
         step_start = time.monotonic()
         console.print("\n[bold blue]Step 3: Developer[/bold blue]")
+
+        # Include reviewer feedback and previous implementation context
+        reviewer_feedback = ""
+        review_file = task_path / "review.md"
+        impl_file = task_path / "implementation.md"
+        if review_file.exists():
+            review_content = review_file.read_text()
+
+            # Build context about what was previously implemented
+            prev_impl_context = ""
+            if impl_file.exists():
+                impl_text = impl_file.read_text()
+                prev_files: list[str] = []
+                in_created = False
+                for line in impl_text.splitlines():
+                    if line.strip() == "## Files Created":
+                        in_created = True
+                        continue
+                    if line.startswith("## "):
+                        in_created = False
+                        continue
+                    if in_created and line.startswith("- "):
+                        prev_files.append(line[2:].strip())
+
+                if prev_files:
+                    prev_impl_context = (
+                        "\n## Previously Created Files\n"
+                        "These files already exist on disk from the previous "
+                        "implementation attempt. You should READ them first, "
+                        "then MODIFY them to fix the reviewer's findings "
+                        "(use write_file to overwrite):\n"
+                        + "\n".join(f"- {f}" for f in prev_files)
+                        + "\n\n"
+                    )
+
+            reviewer_feedback = (
+                "\n## IMPORTANT: This is a RE-IMPLEMENTATION\n"
+                "This task was previously implemented but the reviewer "
+                "requested changes. The code already exists on disk.\n"
+                "You are NOT starting from scratch — you are FIXING "
+                "the existing implementation.\n\n"
+                "Your workflow:\n"
+                "1. Read the existing files to understand current state\n"
+                "2. Identify what needs to change based on the findings below\n"
+                "3. Write the corrected files (overwrite existing ones)\n"
+                "4. Run ruff, mypy, and pytest to validate\n\n"
+                f"{prev_impl_context}"
+                "## Reviewer Findings (MUST FIX)\n"
+                "The reviewer requested the following changes:\n\n"
+                f"{review_content}\n\n"
+                "You MUST address ALL findings above. "
+                "Do not repeat the same mistakes.\n\n"
+            )
+            console.print(
+                "  [dim]Re-implementation mode: "
+                "including reviewer feedback + previous file list[/dim]"
+            )
+            logger.info(
+                "Developer context includes reviewer feedback "
+                "and previous implementation files"
+            )
+
         developer_context = (
             f"Task: {objective}\nScope: {scope}\n"
             f"Plan: {json.dumps(plan)}\n\n"
-            "Implement this feature. Respond with a JSON object containing:\n"
-            '  - "files_created": array of file paths to create\n'
-            '  - "files_modified": array of file paths to modify\n'
+            f"{reviewer_feedback}"
+            "Implement this feature using the tools provided to you.\n"
+            "You MUST use write_file to create actual files on disk and "
+            "run_command to validate with ruff, mypy, and pytest.\n"
+            "Do NOT just output code in your response — use the write_file tool.\n\n"
+            "After completing all tool-based implementation, respond with a "
+            "JSON summary containing:\n"
+            '  - "files_created": array of relative file paths you wrote\n'
+            '  - "files_modified": array of relative file paths you modified\n'
             '  - "design_decisions": array of key decisions made\n'
-            '  - "code_snippets": object mapping file path to code content\n'
+            '  - "tests_passed": boolean indicating if pytest passed\n'
         )
         developer_response = _invoke_agent(llm, "developer", developer_context)
+
+        # Ground truth: files the agent actually wrote via write_file tool
+        actual_written = get_written_files()
 
         if developer_response:
             try:
                 dev_data = parse_json_response(developer_response)
-                files_created = dev_data.get(
-                    "files_created", [f"src/plugins/task_{task_number}.py"]
-                )
+                claimed_created = dev_data.get("files_created", [])
                 files_modified = dev_data.get("files_modified", [])
+                tests_passed = dev_data.get("tests_passed", False)
             except ValueError:
-                files_created = [f"src/plugins/task_{task_number}.py"]
+                claimed_created = []
                 files_modified = []
+                tests_passed = False
         else:
-            files_created = [
-                f"src/plugins/task_{task_number}.py",
-                f"tests/unit/test_task_{task_number}.py",
-            ]
+            claimed_created = []
             files_modified = []
+            tests_passed = False
+
+        # Prefer actual tool-tracked writes over LLM claims
+        if actual_written:
+            files_created = actual_written
+            if claimed_created and set(claimed_created) != set(actual_written):
+                logger.warning(
+                    "LLM claimed files_created=%s but tool tracker recorded=%s",
+                    claimed_created,
+                    actual_written,
+                )
+        elif claimed_created:
+            files_created = claimed_created
+        else:
+            files_created = []
 
         impl_created_at = datetime.now().isoformat()
         implementation: dict[str, Any] = {
             "task_number": task_number,
             "files_created": files_created,
             "files_modified": files_modified,
-            "tests_written": True,
-            "linting_passed": True,
-            "type_checking_passed": True,
-            "test_coverage": 85,
+            "tests_written": any("tests/" in f for f in files_created),
+            "linting_passed": False,
+            "type_checking_passed": False,
+            "test_coverage": 0,
             "created_at": impl_created_at,
         }
         tracker.log("developer", "implement", implementation)
-
-        impl_content = (
-            f"# Implementation Report - Task {task_number}\n\n"
-            f"## Files Created\n"
-            + "\n".join(f"- {f}" for f in files_created)
-            + "\n\n## Files Modified\n"
-            + "\n".join(f"- {f}" for f in files_modified)
-            + "\n\n## Quality Score\n"
-            + f"- Tests Written: True\n- Created: {impl_created_at}\n"
-        )
-        if developer_response:
-            impl_content += f"\n## LLM Output\n\n{developer_response}\n"
-        _save_markdown(
-            task_path / "implementation.md",
-            impl_content,
-        )
 
         # --- Post-Developer Guards (P0/P2) ---
         try:
@@ -1121,35 +1287,102 @@ def resume(
             console.print(f"\n  [dim]Fix the issues and resume: {resume_cmd}[/dim]")
             raise typer.Exit(code=1) from None
 
+        # Guards passed — now save the implementation report (preserve history)
+        impl_path = task_path / "implementation.md"
+        previous_history = ""
+        if impl_path.exists():
+            existing_content = impl_path.read_text()
+            # Count existing iterations
+            iteration_count = existing_content.count("## Iteration ")
+            if iteration_count == 0:
+                # First re-implementation: wrap existing content as Iteration 1
+                previous_history = (
+                    f"\n---\n\n## Iteration 1 (original)\n\n{existing_content}\n"
+                )
+                current_iteration = 2
+            else:
+                # Subsequent re-implementations: preserve all history
+                if "---" in existing_content:
+                    history_section = existing_content.split("---", 1)[-1]
+                else:
+                    history_section = existing_content
+                previous_history = f"\n---\n\n{history_section}\n"
+                current_iteration = iteration_count + 2
+            logger.info(
+                "Preserving implementation history: iteration %d",
+                current_iteration,
+            )
+        else:
+            current_iteration = 1
+
+        impl_content = (
+            f"# Implementation Report - Task {task_number}\n\n"
+            f"## Iteration {current_iteration}"
+            f"{' (fix)' if current_iteration > 1 else ''}\n\n"
+            f"## Files Created\n"
+            + "\n".join(f"- {f}" for f in files_created)
+            + "\n\n## Files Modified\n"
+            + "\n".join(f"- {f}" for f in files_modified)
+            + "\n\n## Quality Score\n"
+            + f"- Tests Written: {implementation['tests_written']}\n"
+            + f"- Tests Passed: {tests_passed}\n"
+            + f"- Created: {impl_created_at}\n"
+        )
+        if developer_response:
+            impl_content += f"\n## LLM Output\n\n```json\n{developer_response}\n```\n"
+        impl_content += previous_history
+        _save_markdown(
+            impl_path,
+            impl_content,
+        )
+
         logger.info("Step 3 completed in %.2fs", time.monotonic() - step_start)
         console.print("  [green]✓[/green] Implementation complete")
     else:
-        # Load existing implementation data for downstream steps
-        files_created = [f"src/plugins/task_{task_number}.py"]
+        # Load existing implementation data from the saved report
+        impl_file = task_path / "implementation.md"
+        files_created = []
         files_modified = []
+        if impl_file.exists():
+            impl_text = impl_file.read_text()
+            in_created = False
+            in_modified = False
+            for line in impl_text.splitlines():
+                if line.strip() == "## Files Created":
+                    in_created = True
+                    in_modified = False
+                    continue
+                if line.strip() == "## Files Modified":
+                    in_modified = True
+                    in_created = False
+                    continue
+                if line.startswith("## "):
+                    in_created = False
+                    in_modified = False
+                    continue
+                if in_created and line.startswith("- "):
+                    files_created.append(line[2:].strip())
+                if in_modified and line.startswith("- "):
+                    files_modified.append(line[2:].strip())
         implementation = {
             "task_number": task_number,
             "files_created": files_created,
             "files_modified": files_modified,
-            "tests_written": True,
-            "linting_passed": True,
-            "type_checking_passed": True,
-            "test_coverage": 85,
+            "tests_written": any("tests/" in f for f in files_created),
+            "linting_passed": False,
+            "type_checking_passed": False,
+            "test_coverage": 0,
             "created_at": datetime.now().isoformat(),
         }
         console.print("\n[bold blue]Step 3: Developer[/bold blue]")
-        console.print("  [dim]Already completed — skipping[/dim]")
+        console.print("  [yellow]⏭ Already completed — skipping[/yellow]")
+        console.print(f"  [dim]Files from report:[/dim] {files_created}")
 
     # --- Step 4: Tester (if not yet done) ---
     if last_completed < 4:
         logger.info("--- Step 4: Tester ---")
         step_start = time.monotonic()
         console.print("\n[bold blue]Step 4: Tester[/bold blue]")
-        for gate_name, gate_fn in QUALITY_GATES.items():
-            passed, msg = gate_fn(implementation)
-            tracker.log_quality_gate(gate_name, passed, msg)
-            icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
-            console.print(f"  {icon} {msg}")
 
         # --- Post-Tester Guards (P0: actual test execution) ---
         try:
@@ -1166,6 +1399,17 @@ def resume(
             )
             console.print(f"\n  [dim]Fix the issues and resume: {resume_cmd}[/dim]")
             raise typer.Exit(code=1) from None
+
+        # Measure actual test coverage after tests pass
+        actual_coverage = measure_test_coverage(workspace)
+        implementation["test_coverage"] = actual_coverage
+        console.print(f"  [dim]Measured coverage:[/dim] {actual_coverage:.1f}%")
+
+        for gate_name, gate_fn in QUALITY_GATES.items():
+            passed, msg = gate_fn(implementation)
+            tracker.log_quality_gate(gate_name, passed, msg)
+            icon = "[green]✓[/green]" if passed else "[red]✗[/red]"
+            console.print(f"  {icon} {msg}")
 
         logger.info("Step 4 completed in %.2fs", time.monotonic() - step_start)
 
@@ -1203,13 +1447,19 @@ def resume(
             f"Files created: {json.dumps(files_created)}\n"
             f"Files modified: {json.dumps(files_modified)}\n"
             f"Quality gates passed: {all_gates_passed}\n"
-            f"Test coverage: {implementation['test_coverage']}%\n\n"
-            "Review this implementation. Respond with a JSON object containing:\n"
+            f"Test coverage: {implementation['test_coverage']:.1f}%\n\n"
+            f"## Source Code\n"
+            f"{_build_file_contents_block(files_created + files_modified, workspace)}"
+            f"\n\n"
+            "Review this implementation. You MUST base your findings on the actual "
+            "source code provided above. Do NOT hallucinate missing features that "
+            "are present in the code.\n\n"
+            "Respond with a JSON object containing:\n"
             '  - "decision": one of "approved", "request_changes", "rejected"\n'
-            '  - "findings": array of issues or observations\n'
+            '  - "findings": array of issues or observations (cite specific lines)\n'
             '  - "suggested_improvements": array of recommendations\n'
         )
-        reviewer_response = _invoke_agent(llm, "reviewer", reviewer_context)
+        reviewer_response = _invoke_agent(llm, "reviewer", reviewer_context, workspace)
 
         if reviewer_response:
             try:
@@ -1251,26 +1501,24 @@ def resume(
         console.print("\n[bold blue]Step 5: Reviewer[/bold blue]")
         console.print(f"  [dim]Already completed — status: {review_status}[/dim]")
 
-    # --- Step 6: Merge ---
-    logger.info("--- Step 6: Merge ---")
-    console.print("\n[bold blue]Step 6: Merge[/bold blue]")
+    # Pipeline complete
+    total_elapsed = time.monotonic() - pipeline_start
     if review_status != "approved":
-        logger.warning("Merge blocked: review_status=%s", review_status)
-        console.print("  [red]✗ Cannot merge — review not approved[/red]")
+        logger.warning("Pipeline ended: review_status=%s", review_status)
+        console.print(
+            f"\n  [red]✗ Review returned '{review_status}' — "
+            "run resume --from-step 3 to fix[/red]"
+        )
+        resume_cmd = (
+            f"uv run python scripts/orchestrator.py resume {task_number} --from-step 3"
+        )
+        console.print(f"  [dim]{resume_cmd}[/dim]")
         raise typer.Exit(code=1) from None
 
-    if not auto_approve:
-        typer.confirm("  Approve merge?", abort=True)
-
-    tracker.log_decision("merge_approved", "Human approved merge (resume)", "human")
-    total_elapsed = time.monotonic() - pipeline_start
     logger.info(
         "=== Pipeline resumed and completed in %.2fs (task=%d) ===",
         total_elapsed,
         task_number,
-    )
-    console.print(
-        f"  [green]✓[/green] Merged to branch [bold]agentic-task-{task_number}[/bold]"
     )
     console.print(
         Panel(

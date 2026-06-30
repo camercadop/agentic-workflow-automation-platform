@@ -16,6 +16,7 @@ from src.governance.gates import (
 )
 from src.governance.pipeline_errors import PipelineGateError
 from src.governance.pipeline_guards import (
+    measure_test_coverage,
     run_all_guards_for_step,
     run_developer_guards,
     run_reviewer_guards,
@@ -39,6 +40,7 @@ __all__ = [
     "ValidationReport",
     "ValidationResult",
     "WorkflowValidationGate",
+    "measure_test_coverage",
     "run_all_guards_for_step",
     "run_developer_guards",
     "run_reviewer_guards",
