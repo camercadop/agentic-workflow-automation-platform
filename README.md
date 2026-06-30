@@ -15,6 +15,8 @@
 
 This project is a demonstration of an **Agentic Software Development Process**. While the target product is a plugin-based workflow automation platform, the primary goal is to showcase how specialized AI agents collaborate to design, implement, test, review, and document software autonomously.
 
+> **New here?** Start with the [Agentic Development Pipeline](docs/AGENTIC_DEVELOPMENT_PIPELINE.md) to understand how the entire agent-driven process works end-to-end.
+
 ## Why This Project Exists
 This platform exists to demonstrate two core innovations:
 
@@ -320,6 +322,8 @@ flowchart TD
     F -->|request_changes| D
 ```
 
+> For a complete, step-by-step explanation of this flow (with diagrams, tool-calling details, guards, and feedback loops), see **[Agentic Development Pipeline](docs/AGENTIC_DEVELOPMENT_PIPELINE.md)**.
+
 ### Agent Tool-Calling
 
 The Developer, Tester, and Reviewer agents use an agentic tool-calling loop to interact with the codebase. Instead of producing text-only responses, they can:
@@ -342,6 +346,7 @@ See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md#agent-infrastructure) fo
 - **ADR Index**: [`/docs/adr/`](docs/adr/) – all Architectural Decision Records
 - **C4 Level 0 – System Context**: [`level-0-system-context.md`](docs/architecture/c4/level-0-system-context.md)
 - **C4 Level 1 – Container Diagram**: [`level-1-container.md`](docs/architecture/c4/level-1-container.md)
+- **⭐ Agentic Development Pipeline**: [`docs/AGENTIC_DEVELOPMENT_PIPELINE.md`](docs/AGENTIC_DEVELOPMENT_PIPELINE.md) – how agents drive the full development lifecycle (start here to understand the system)
 - **Glossary**: [`GLOSSARY.md`](GLOSSARY.md) – key terminology and definitions
 - **Developer Guide**: [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) – module usage and architecture constraints
 - **Testing Guide**: [`docs/TESTING.md`](docs/TESTING.md) – testing conventions, structure, and examples

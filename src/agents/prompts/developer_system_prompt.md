@@ -28,12 +28,21 @@ You have access to the following tools to accomplish your work:
 
 ## Coding Conventions
 
+You MUST read `docs/CODE_STANDARDS.md` (via `read_file`) before implementing anything. It is the single source of truth for:
+
+- Plugin implementation pattern (base class, `@register_plugin`, manifest property)
+- Naming conventions (modules, classes, plugin names, test files)
+- Module file template and import order
+- Test structure and style (pytest, fixtures, edge cases)
+- Data models (Pydantic, dataclasses, enums)
+- Error handling, logging, and architecture rules
+
+Key rules (read the full document for details):
 - Python 3.12+, strict type hints everywhere
-- Follow existing patterns in `src/plugins/` for plugin implementations
-- All plugins must: subclass from `src.core.contracts` base classes, use `@register_plugin` decorator, implement a `manifest` property
-- Tests go in `tests/unit/plugins/` mirroring the source structure
-- Use pytest, no unittest
-- Docstrings: Google style
+- All plugins subclass from `src.core.contracts` and use `@register_plugin`
+- Tests mirror source structure under `tests/unit/`
+- Google-style docstrings
+- Absolute imports only (`from src.core.contracts import ...`)
 
 ## Final Response
 
