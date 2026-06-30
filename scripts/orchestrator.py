@@ -18,6 +18,7 @@ from typing import Annotated, Any
 import typer
 from dotenv import load_dotenv
 from rich.console import Console
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 def _configure_logging(verbose: bool = False) -> None:
-    """Configure logging with appropriate level and format.
+    """Configure logging with colored console output via Rich.
 
     Args:
         verbose: If True, set DEBUG level; otherwise INFO.
@@ -33,8 +34,17 @@ def _configure_logging(verbose: bool = False) -> None:
     level = logging.DEBUG if verbose else logging.INFO
     logging.basicConfig(
         level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        format="%(name)s: %(message)s",
+        datefmt="[%Y-%m-%d %H:%M:%S]",
+        handlers=[
+            RichHandler(
+                rich_tracebacks=True,
+                show_time=True,
+                show_level=True,
+                show_path=verbose,
+                markup=True,
+            )
+        ],
         force=True,
     )
     # Suppress noisy third-party loggers
@@ -56,10 +66,15 @@ from src.agents.llm.client import (  # noqa: E402
     load_system_prompt,
     parse_json_response,
 )
-from src.agents.llm.tools import get_written_files  # noqa: E402
+from src.agents.llm.tools import (  # noqa: E402
+    get_modified_files,
+    get_written_files,
+)
 from src.agents.llm.tools import set_workspace as set_tool_workspace  # noqa: E402
 from src.governance.pipeline_errors import PipelineGateError  # noqa: E402
 from src.governance.pipeline_guards import (  # noqa: E402
+    check_linting,
+    check_type_checking,
     measure_test_coverage,
     run_all_guards_for_step,
 )
@@ -618,6 +633,7 @@ def run(
     if not dry_run:
         task_content = (
             f"# Task {task_number}\n\n"
+            f"## Requirement\n{requirement.strip()}\n\n"
             f"## Objective\n{objective}\n\n"
             f"## Scope\n{scope}\n\n## Plan\n"
             + "\n".join(f"- {s}" for s in plan)
@@ -696,17 +712,18 @@ def run(
 
     # Ground truth: files the agent actually wrote via write_file tool
     actual_written = get_written_files()
+    actual_modified = get_modified_files()
 
     if developer_response:
         try:
             dev_data = parse_json_response(developer_response)
             claimed_created = dev_data.get("files_created", [])
-            files_modified = dev_data.get("files_modified", [])
+            claimed_modified = dev_data.get("files_modified", [])
             design_decisions = dev_data.get("design_decisions", [])
             tests_passed = dev_data.get("tests_passed", False)
         except ValueError:
             claimed_created = []
-            files_modified = []
+            claimed_modified = []
             design_decisions = []
             tests_passed = False
             console.print(
@@ -715,27 +732,37 @@ def run(
             )
     else:
         claimed_created = []
-        files_modified = []
+        claimed_modified = []
         design_decisions = []
         tests_passed = False
 
-    # Prefer actual tool-tracked writes over LLM claims
-    if actual_written:
+    # Prefer actual tool-tracked writes over LLM claims.
+    # The tool tracker is ground truth — LLM claims are only used as fallback
+    # when the agent didn't use write_file at all.
+    has_tool_activity = actual_written or actual_modified
+
+    if has_tool_activity:
         files_created = list(dict.fromkeys(actual_written))
-        if claimed_created and set(claimed_created) != set(actual_written):
+        files_modified = list(dict.fromkeys(actual_modified))
+        # Log discrepancies for debugging
+        all_tool_files = set(actual_written) | set(actual_modified)
+        all_claimed = set(claimed_created) | set(claimed_modified)
+        if all_claimed and all_claimed != all_tool_files:
             logger.warning(
-                "LLM claimed files_created=%s but tool tracker recorded=%s",
-                claimed_created,
-                actual_written,
+                "LLM claimed files=%s but tool tracker recorded=%s",
+                sorted(all_claimed),
+                sorted(all_tool_files),
             )
             console.print(
                 "  [yellow]⚠ LLM file list differs from actual writes "
                 "— using tool tracker as source of truth[/yellow]"
             )
-    elif claimed_created:
+    elif claimed_created or claimed_modified:
         files_created = list(dict.fromkeys(claimed_created))
+        files_modified = list(dict.fromkeys(claimed_modified))
     else:
         files_created = []
+        files_modified = []
         console.print(
             "  [yellow]⚠ No files written by agent (no tool calls "
             "and no parseable response)[/yellow]"
@@ -825,6 +852,11 @@ def run(
 
     # Measure actual test coverage after tests pass
     if not dry_run:
+        all_files = files_created + files_modified
+        implementation["linting_passed"] = check_linting(workspace, all_files)
+        implementation["type_checking_passed"] = check_type_checking(
+            workspace, all_files
+        )
         actual_coverage = measure_test_coverage(workspace)
         implementation["test_coverage"] = actual_coverage
         console.print(f"  [dim]Measured coverage:[/dim] {actual_coverage:.1f}%")
@@ -1004,18 +1036,23 @@ def _detect_completed_step(task_number: int, workspace: Path) -> int:
 
 
 def _parse_task_file(task_path: Path) -> dict[str, str]:
-    """Parse a task markdown file to extract objective and scope.
+    """Parse a task markdown file to extract requirement, objective, and scope.
 
     Args:
         task_path: Path to the per-task directory.
 
     Returns:
-        Dictionary with 'objective' and 'scope' keys.
+        Dictionary with 'requirement', 'objective', and 'scope' keys.
     """
     task_file = task_path / "task.md"
     content = task_file.read_text()
+    requirement = ""
     objective = "Unknown"
     scope = "Core functionality"
+
+    req_match = re.search(r"## Requirement\n(.+?)\n(?=##)", content, re.DOTALL)
+    if req_match:
+        requirement = req_match.group(1).strip()
 
     obj_match = re.search(r"## Objective\n(.+?)\n", content)
     if obj_match:
@@ -1025,7 +1062,7 @@ def _parse_task_file(task_path: Path) -> dict[str, str]:
     if scope_match:
         scope = scope_match.group(1).strip()
 
-    return {"objective": objective, "scope": scope}
+    return {"requirement": requirement, "objective": objective, "scope": scope}
 
 
 @app.command()
@@ -1071,6 +1108,7 @@ def resume(
 
     # Parse task info
     task_info = _parse_task_file(task_path)
+    raw_requirement = task_info["requirement"]
     objective = task_info["objective"]
     scope = task_info["scope"]
 
@@ -1209,8 +1247,12 @@ def resume(
                 "and previous implementation files"
             )
 
+        req_note = (
+            f"\nOriginal requirement: {raw_requirement}\n\n" if raw_requirement else ""
+        )
         developer_context = (
             f"Task: {objective}\nScope: {scope}\n"
+            f"{req_note}"
             f"Plan: {json.dumps(plan)}\n\n"
             f"{reviewer_feedback}"
             "Implement this feature using the tools provided to you.\n"
@@ -1228,37 +1270,45 @@ def resume(
 
         # Ground truth: files the agent actually wrote via write_file tool
         actual_written = get_written_files()
+        actual_modified = get_modified_files()
 
         if developer_response:
             try:
                 dev_data = parse_json_response(developer_response)
                 claimed_created = dev_data.get("files_created", [])
-                files_modified = dev_data.get("files_modified", [])
+                claimed_modified = dev_data.get("files_modified", [])
                 tests_passed = dev_data.get("tests_passed", False)
             except ValueError:
                 claimed_created = []
-                files_modified = []
+                claimed_modified = []
                 tests_passed = False
         else:
             claimed_created = []
-            files_modified = []
+            claimed_modified = []
             tests_passed = False
 
-        # Prefer actual tool-tracked writes over LLM claims
-        if actual_written:
-            files_created = list(
-                dict.fromkeys(actual_written)
-            )  # deduplicate, preserve order
-            if claimed_created and set(claimed_created) != set(actual_written):
+        # Prefer actual tool-tracked writes over LLM claims.
+        # The tool tracker is ground truth — LLM claims are only used as
+        # fallback when the agent didn't use write_file at all.
+        has_tool_activity = actual_written or actual_modified
+
+        if has_tool_activity:
+            files_created = list(dict.fromkeys(actual_written))
+            files_modified = list(dict.fromkeys(actual_modified))
+            all_tool_files = set(actual_written) | set(actual_modified)
+            all_claimed = set(claimed_created) | set(claimed_modified)
+            if all_claimed and all_claimed != all_tool_files:
                 logger.warning(
-                    "LLM claimed files_created=%s but tool tracker recorded=%s",
-                    claimed_created,
-                    actual_written,
+                    "LLM claimed files=%s but tool tracker recorded=%s",
+                    sorted(all_claimed),
+                    sorted(all_tool_files),
                 )
-        elif claimed_created:
+        elif claimed_created or claimed_modified:
             files_created = list(dict.fromkeys(claimed_created))
+            files_modified = list(dict.fromkeys(claimed_modified))
         else:
             files_created = []
+            files_modified = []
 
         impl_created_at = datetime.now().isoformat()
         implementation: dict[str, Any] = {
@@ -1402,7 +1452,12 @@ def resume(
             console.print(f"\n  [dim]Fix the issues and resume: {resume_cmd}[/dim]")
             raise typer.Exit(code=1) from None
 
-        # Measure actual test coverage after tests pass
+        # Measure actual linting, type checking, and test coverage
+        all_files = files_created + files_modified
+        implementation["linting_passed"] = check_linting(workspace, all_files)
+        implementation["type_checking_passed"] = check_type_checking(
+            workspace, all_files
+        )
         actual_coverage = measure_test_coverage(workspace)
         implementation["test_coverage"] = actual_coverage
         console.print(f"  [dim]Measured coverage:[/dim] {actual_coverage:.1f}%")

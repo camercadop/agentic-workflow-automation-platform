@@ -212,6 +212,30 @@ class LLMClient:
             )
 
             response = self._api_call_with_retry(messages, use_tools=True)
+            if not response or not response.choices:
+                logger.warning(
+                    "API returned empty response/choices at iteration %d. Retrying.",
+                    iteration + 1,
+                )
+                empty_response_retries += 1
+                if empty_response_retries > self.max_retries:
+                    raise LLMError(
+                        "LLM returned empty response/choices after "
+                        f"{empty_response_retries} retries."
+                    )
+                delay = self.retry_delay * (self.retry_backoff**empty_response_retries)
+                time.sleep(delay)
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            "You returned an empty response. "
+                            "Please provide your complete answer or "
+                            "continue using tools if needed."
+                        ),
+                    }
+                )
+                continue
             choice = response.choices[0]
             message = choice.message
             finish_reason = choice.finish_reason
@@ -401,13 +425,56 @@ class LLMClient:
         try:
             arguments = json.loads(tool_call.function.arguments)
         except json.JSONDecodeError as e:
-            logger.error("Failed to parse tool arguments for '%s': %s", name, e)
-            return f"Error: Invalid JSON in tool arguments: {e}"
+            # Attempt to repair truncated JSON (common with large write_file content)
+            repaired = self._try_repair_tool_json(name, tool_call.function.arguments)
+            if repaired is not None:
+                arguments = repaired
+                logger.warning("Repaired truncated JSON for tool '%s'", name)
+            else:
+                logger.error("Failed to parse tool arguments for '%s': %s", name, e)
+                return (
+                    f"Error: Invalid JSON in tool arguments: {e}. "
+                    f"Your response was likely truncated. "
+                    f"Please retry the write_file call with the complete content."
+                )
 
         logger.info("Executing tool: %s(%s)", name, arguments)
         result = execute_tool_call(name, arguments)
         logger.debug("Tool '%s' result: %s", name, result[:200])
         return result
+
+    @staticmethod
+    def _try_repair_tool_json(tool_name: str, raw_args: str) -> dict[str, Any] | None:
+        """Attempt to repair truncated JSON from tool call arguments.
+
+        Handles the common case where write_file content is cut off mid-string
+        due to token limits, resulting in an unterminated string.
+
+        Args:
+            tool_name: Name of the tool (only write_file is repaired).
+            raw_args: The raw JSON string that failed to parse.
+
+        Returns:
+            Parsed arguments dict if repair succeeded, None otherwise.
+        """
+        if tool_name != "write_file":
+            return None
+
+        # Try closing the unterminated string and object
+        # Common truncation: {"path": "...", "content": "some code...
+        for suffix in ['"}', '\n"}', '"\n}']:
+            try:
+                repaired: dict[str, Any] = json.loads(raw_args + suffix)
+                if "path" in repaired and "content" in repaired:
+                    logger.info(
+                        "JSON repair succeeded for write_file (appended %r)",
+                        suffix,
+                    )
+                    return repaired
+            except json.JSONDecodeError:
+                continue
+
+        return None
 
 
 class LLMError(Exception):

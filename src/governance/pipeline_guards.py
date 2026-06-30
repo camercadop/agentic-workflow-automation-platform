@@ -125,6 +125,74 @@ def verify_tests_pass(workspace: Path, timeout: int = 120) -> list[str]:
     return errors
 
 
+def check_linting(workspace: Path, files: list[str], timeout: int = 60) -> bool:
+    """Run ruff check on the specified files.
+
+    Args:
+        workspace: Project root directory.
+        files: Relative file paths to lint.
+        timeout: Maximum seconds to wait.
+
+    Returns:
+        True if linting passed (no errors), False otherwise.
+    """
+    python_files = [f for f in files if f.endswith(".py")]
+    if not python_files:
+        return True
+
+    try:
+        result = subprocess.run(
+            ["uv", "run", "ruff", "check", *python_files],
+            cwd=str(workspace),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if result.returncode == 0:
+            logger.info("Linting passed for %d file(s)", len(python_files))
+            return True
+        else:
+            logger.warning("Linting failed:\n%s", result.stdout[:500])
+            return False
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.warning("Linting check failed to run: %s", e)
+        return False
+
+
+def check_type_checking(workspace: Path, files: list[str], timeout: int = 120) -> bool:
+    """Run mypy on the specified files.
+
+    Args:
+        workspace: Project root directory.
+        files: Relative file paths to type-check.
+        timeout: Maximum seconds to wait.
+
+    Returns:
+        True if type checking passed (no errors), False otherwise.
+    """
+    python_files = [f for f in files if f.endswith(".py")]
+    if not python_files:
+        return True
+
+    try:
+        result = subprocess.run(
+            ["uv", "run", "mypy", *python_files],
+            cwd=str(workspace),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        if result.returncode == 0:
+            logger.info("Type checking passed for %d file(s)", len(python_files))
+            return True
+        else:
+            logger.warning("Type checking failed:\n%s", result.stdout[:500])
+            return False
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.warning("Type checking failed to run: %s", e)
+        return False
+
+
 def measure_test_coverage(workspace: Path, timeout: int = 120) -> float:
     """Run pytest with coverage and return the total coverage percentage.
 

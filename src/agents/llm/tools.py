@@ -26,6 +26,8 @@ MAX_TOOL_ITERATIONS = 20
 
 # Tracks files successfully written during the current tool-calling session
 _WRITTEN_FILES: list[str] = []
+# Tracks files that already existed and were overwritten (modified)
+_MODIFIED_FILES: list[str] = []
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +120,8 @@ def execute_write_file(path: str, content: str) -> str:
         if not any(path.startswith(p) for p in allowed_write_prefixes):
             return f"Error: Writing only allowed under {allowed_write_prefixes}"
         resolved.parent.mkdir(parents=True, exist_ok=True)
+        # Track whether this is a create or modify before writing
+        already_exists = resolved.exists()
         resolved.write_text(content, encoding="utf-8")
         # Quick syntax check for Python files
         if path.endswith(".py"):
@@ -128,8 +132,12 @@ def execute_write_file(path: str, content: str) -> str:
                     f"Warning: File written but has syntax error "
                     f"at line {e.lineno}: {e.msg}"
                 )
-        if path not in _WRITTEN_FILES:
-            _WRITTEN_FILES.append(path)
+        if already_exists:
+            if path not in _MODIFIED_FILES:
+                _MODIFIED_FILES.append(path)
+        else:
+            if path not in _WRITTEN_FILES:
+                _WRITTEN_FILES.append(path)
         logger.info("Tool write_file: wrote %d bytes to %s", len(content), path)
         return f"Successfully wrote {len(content)} bytes to {path}"
     except (ValueError, OSError) as e:
@@ -273,7 +281,7 @@ def execute_tool_call(name: str, arguments: dict[str, Any]) -> str:
 def set_workspace(workspace: Path) -> None:
     """Override the workspace root path.
 
-    Also resets the written-files tracker for a fresh session.
+    Also resets the written-files and modified-files trackers for a fresh session.
 
     Args:
         workspace: New workspace root path.
@@ -281,18 +289,30 @@ def set_workspace(workspace: Path) -> None:
     global _WORKSPACE  # noqa: PLW0603
     _WORKSPACE = workspace.resolve()
     _WRITTEN_FILES.clear()
+    _MODIFIED_FILES.clear()
     logger.info("Tool workspace set to: %s", _WORKSPACE)
 
 
 def get_written_files() -> list[str]:
-    """Return the list of file paths written during the current session.
+    """Return the list of new file paths created during the current session.
 
     Returns:
-        List of relative paths that were successfully written via write_file.
+        List of relative paths that were created (did not exist) via write_file.
     """
     return list(_WRITTEN_FILES)
 
 
+def get_modified_files() -> list[str]:
+    """Return the list of file paths modified during the current session.
+
+    Returns:
+        List of relative paths that already existed and were overwritten
+        via write_file.
+    """
+    return list(_MODIFIED_FILES)
+
+
 def clear_written_files() -> None:
-    """Reset the written-files tracker (for testing)."""
+    """Reset the written-files and modified-files trackers (for testing)."""
     _WRITTEN_FILES.clear()
+    _MODIFIED_FILES.clear()
