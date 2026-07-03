@@ -15,6 +15,7 @@ Configuration via environment variables:
     LLM_MAX_RETRIES:   Max retries for empty/failed responses (default: 3)
     LLM_RETRY_DELAY:   Initial retry delay in seconds (default: 2.0)
     LLM_RETRY_BACKOFF: Backoff multiplier per retry (default: 2.0)
+    LLM_TIMEOUT:       Request timeout in seconds (default: 120)
 """
 
 import json
@@ -75,6 +76,7 @@ class LLMClient:
         self.max_retries = int(os.environ.get("LLM_MAX_RETRIES", "3"))
         self.retry_delay = float(os.environ.get("LLM_RETRY_DELAY", "2.0"))
         self.retry_backoff = float(os.environ.get("LLM_RETRY_BACKOFF", "2.0"))
+        self.timeout = float(os.environ.get("LLM_TIMEOUT", "120"))
 
         if not self.api_key:
             raise LLMConfigError(
@@ -84,7 +86,9 @@ class LLMClient:
         self._client = OpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
+            timeout=self.timeout,
         )
+        logger.info("LLM client initialized with model: '%s'", self.model)
 
     def invoke(self, system_prompt: str, user_message: str) -> str:
         """Send a message to the LLM and return the response text.
@@ -376,6 +380,7 @@ class LLMClient:
             LLMError: If all retry attempts fail.
         """
         last_error: OpenAIError | None = None
+        logger.debug("Making API call with model: '%s'", self.model)
         kwargs: dict[str, Any] = {
             "model": self.model,
             "messages": messages,

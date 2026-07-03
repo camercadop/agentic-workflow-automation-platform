@@ -18,6 +18,7 @@ from typing import Annotated, Any
 import typer
 from dotenv import load_dotenv
 from rich.console import Console
+from rich.json import JSON
 from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.table import Table
@@ -137,6 +138,58 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+
+STEPS = ["Planner", "Architect", "Developer", "Tester", "Reviewer"]
+
+
+def render_step_flow(current: int, results: dict[int, str] | None = None) -> None:
+    """Display a prominent flow indicator showing pipeline progress.
+
+    Args:
+        current: Zero-based index of the currently active step.
+        results: Optional dict mapping step index to 'pass' or 'skip'.
+    """
+    if results is None:
+        results = {}
+    parts: list[str] = []
+    for i, name in enumerate(STEPS):
+        if i in results:
+            if results[i] == "skip":
+                parts.append(f"[yellow]⏭ {name}[/yellow]")
+            else:
+                parts.append(f"[green]✓ {name}[/green]")
+        elif i == current:
+            parts.append(f"[bold cyan on grey23] ▶ {name} [/bold cyan on grey23]")
+        else:
+            parts.append(f"[dim]○ {name}[/dim]")
+    flow_line = "  →  ".join(parts)
+    console.print()
+    console.print(
+        Panel(
+            flow_line,
+            border_style="bright_blue",
+            padding=(0, 2),
+        )
+    )
+
+
+def print_json(data: Any, title: str | None = None) -> None:
+    """Pretty-print a JSON-serializable object with syntax highlighting.
+
+    Args:
+        data: Any JSON-serializable Python object (dict, list, etc.).
+        title: Optional panel title to wrap the output.
+    """
+    try:
+        json_str = json.dumps(data, indent=2, default=str)
+    except (TypeError, ValueError):
+        console.print(f"  [dim]{data}[/dim]")
+        return
+    rendered = JSON(json_str)
+    if title:
+        console.print(Panel(rendered, title=title, border_style="dim"))
+    else:
+        console.print(rendered)
 
 
 # --- Domain Models ---
@@ -456,9 +509,6 @@ def _invoke_agent(
     msg_len = len(user_message)
     use_tools = agent_name in _TOOL_ENABLED_AGENTS
     mode = "with tools" if use_tools else "single-shot"
-    console.print(
-        f"  [dim]Calling '{agent_name}' agent ({msg_len} chars, {mode})...[/dim]"
-    )
     logger.info(
         "Invoking agent '%s' (message length: %d chars, mode: %s)",
         agent_name,
@@ -471,13 +521,18 @@ def _invoke_agent(
         logger.debug(
             "Loaded system prompt for '%s' (%d chars)", agent_name, len(system_prompt)
         )
-        if use_tools:
-            set_tool_workspace(workspace)
-            response = llm.invoke_with_tools(
-                system_prompt, user_message, workspace=workspace
-            )
-        else:
-            response = llm.invoke(system_prompt, user_message)
+        spinner_msg = (
+            f"[bold]{agent_name}[/bold] agent thinking... "
+            f"[dim]({msg_len} chars, {mode})[/dim]"
+        )
+        with console.status(spinner_msg, spinner="dots"):
+            if use_tools:
+                set_tool_workspace(workspace)
+                response = llm.invoke_with_tools(
+                    system_prompt, user_message, workspace=workspace
+                )
+            else:
+                response = llm.invoke(system_prompt, user_message)
         elapsed = time.monotonic() - start_time
         logger.info(
             "Agent '%s' responded in %.2fs (response length: %d chars)",
@@ -486,8 +541,8 @@ def _invoke_agent(
             len(response) if response else 0,
         )
         console.print(
-            f"  [dim]↳ '{agent_name}' responded in {elapsed:.1f}s "
-            f"({len(response) if response else 0} chars)[/dim]"
+            f"  [green]✓[/green] [bold]{agent_name}[/bold] responded "
+            f"in {elapsed:.1f}s [dim]({len(response) if response else 0} chars)[/dim]"
         )
         return response
     except FileNotFoundError as e:
@@ -564,9 +619,12 @@ def run(
         )
     )
 
+    step_results: dict[int, str] = {}
+
     # Step 1: Planner
     logger.info("--- Step 1: Planner ---")
     step_start = time.monotonic()
+    render_step_flow(0, step_results)
     console.print("\n[bold blue]Step 1: Planner[/bold blue]")
     planner_context = (
         f"Requirement: {requirement.strip()}\n\n"
@@ -591,9 +649,7 @@ def run(
             plan = planner_data.get(
                 "plan", ["Analyze", "Design", "Implement", "Test", "Review"]
             )
-            console.print(f"  [dim]Objective:[/dim] {objective}")
-            console.print(f"  [dim]Scope:[/dim] {scope}")
-            console.print(f"  [dim]Plan:[/dim] {len(plan)} steps")
+            print_json(planner_data, title="Planner Output")
         except ValueError:
             # LLM didn't return valid JSON — use the raw text as objective
             objective = f"Implement feature: {requirement.strip()}"
@@ -649,10 +705,12 @@ def run(
         objective[:80],
     )
     console.print("  [green]✓[/green] Task document created")
+    step_results[0] = "pass"
 
     # Step 2: Architect (conditional)
     logger.info("--- Step 2: Architect ---")
     step_start = time.monotonic()
+    render_step_flow(1, step_results)
     console.print("\n[bold blue]Step 2: Architect[/bold blue]")
     if skip_architect or not task_doc["architect_review"]:
         logger.info(
@@ -661,6 +719,7 @@ def run(
             task_doc["architect_review"],
         )
         console.print("  [yellow]⏭ Skipped (not required)[/yellow]")
+        step_results[1] = "skip"
     else:
         console.print("  [yellow]Architect review required[/yellow]")
         architect_context = (
@@ -689,10 +748,12 @@ def run(
             time.monotonic() - step_start,
         )
         console.print("  [green]✓[/green] Architect review approved")
+        step_results[1] = "pass"
 
     # Step 3: Developer
     logger.info("--- Step 3: Developer ---")
     step_start = time.monotonic()
+    render_step_flow(2, step_results)
     console.print("\n[bold blue]Step 3: Developer[/bold blue]")
     developer_context = (
         f"Task: {objective}\nScope: {scope}\n"
@@ -772,9 +833,7 @@ def run(
     console.print(f"  [dim]Files modified:[/dim] {files_modified}")
     console.print(f"  [dim]Tests passed:[/dim] {tests_passed}")
     if design_decisions:
-        console.print(f"  [dim]Design decisions ({len(design_decisions)}):[/dim]")
-        for dd in design_decisions[:3]:
-            console.print(f"    [dim]• {str(dd)[:100]}[/dim]")
+        print_json(design_decisions, title="Design Decisions")
 
     impl_created_at = datetime.now().isoformat()
     implementation: dict[str, Any] = {
@@ -831,10 +890,12 @@ def run(
         files_modified,
     )
     console.print("  [green]✓[/green] Implementation complete")
+    step_results[2] = "pass"
 
     # Step 4: Tester
     logger.info("--- Step 4: Tester ---")
     step_start = time.monotonic()
+    render_step_flow(3, step_results)
     console.print("\n[bold blue]Step 4: Tester[/bold blue]")
 
     # --- Post-Tester Guards (P0: actual test execution) ---
@@ -870,10 +931,12 @@ def run(
         console.print(f"  {icon} {msg}")
 
     logger.info("Step 4 completed in %.2fs", time.monotonic() - step_start)
+    step_results[3] = "pass"
 
     # Step 5: Reviewer
     logger.info("--- Step 5: Reviewer ---")
     step_start = time.monotonic()
+    render_step_flow(4, step_results)
     console.print("\n[bold blue]Step 5: Reviewer[/bold blue]")
 
     # --- Pre-Reviewer Guards (P1: precondition + git consistency) ---
@@ -925,19 +988,9 @@ def run(
             improvements = review_data.get("suggested_improvements", [])
             console.print(f"  [dim]Decision:[/dim] {review_status}")
             if findings:
-                console.print(f"  [dim]Findings ({len(findings)}):[/dim]")
-                for finding in findings[:5]:
-                    console.print(f"    [dim]• {str(finding)[:120]}[/dim]")
-                if len(findings) > 5:
-                    console.print(f"    [dim]... and {len(findings) - 5} more[/dim]")
+                print_json(findings, title=f"Findings ({len(findings)})")
             if improvements:
-                console.print(f"  [dim]Suggestions ({len(improvements)}):[/dim]")
-                for suggestion in improvements[:3]:
-                    console.print(f"    [dim]• {str(suggestion)[:120]}[/dim]")
-                if len(improvements) > 3:
-                    console.print(
-                        f"    [dim]... and {len(improvements) - 3} more[/dim]"
-                    )
+                print_json(improvements, title=f"Suggestions ({len(improvements)})")
         except ValueError:
             review_status = "approved" if all_gates_passed else "request_changes"
             console.print("  [yellow]⚠ Could not parse reviewer response[/yellow]")
@@ -1130,6 +1183,11 @@ def resume(
     tracker = ProgressTracker()
     llm = _init_llm_client()
 
+    # Build initial step_results from already-completed steps
+    step_results: dict[int, str] = {}
+    for i in range(min(last_completed, len(STEPS))):
+        step_results[i] = "pass"
+
     # We need a plan for downstream steps — extract from task file or use default
     task_content = (task_path / "task.md").read_text()
     plan: list[str] = []
@@ -1150,11 +1208,13 @@ def resume(
     if last_completed < 2:
         logger.info("--- Step 2: Architect ---")
         step_start = time.monotonic()
+        render_step_flow(1, step_results)
         console.print("\n[bold blue]Step 2: Architect[/bold blue]")
         needs_review = _needs_architect_review(objective, scope)
         if skip_architect or not needs_review:
             logger.info("Architect review skipped")
             console.print("  [yellow]⏭ Skipped (not required)[/yellow]")
+            step_results[1] = "skip"
         else:
             console.print("  [yellow]Architect review required[/yellow]")
             architect_context = (
@@ -1179,11 +1239,13 @@ def resume(
             )
             logger.info("Step 2 completed in %.2fs", time.monotonic() - step_start)
             console.print("  [green]✓[/green] Architect review approved")
+            step_results[1] = "pass"
 
     # --- Step 3: Developer (if not yet done) ---
     if last_completed < 3:
         logger.info("--- Step 3: Developer ---")
         step_start = time.monotonic()
+        render_step_flow(2, step_results)
         console.print("\n[bold blue]Step 3: Developer[/bold blue]")
 
         # Include reviewer feedback and previous implementation context
@@ -1390,6 +1452,7 @@ def resume(
 
         logger.info("Step 3 completed in %.2fs", time.monotonic() - step_start)
         console.print("  [green]✓[/green] Implementation complete")
+        step_results[2] = "pass"
     else:
         # Load existing implementation data from the saved report
         impl_file = task_path / "implementation.md"
@@ -1434,6 +1497,7 @@ def resume(
     if last_completed < 4:
         logger.info("--- Step 4: Tester ---")
         step_start = time.monotonic()
+        render_step_flow(3, step_results)
         console.print("\n[bold blue]Step 4: Tester[/bold blue]")
 
         # --- Post-Tester Guards (P0: actual test execution) ---
@@ -1469,11 +1533,13 @@ def resume(
             console.print(f"  {icon} {msg}")
 
         logger.info("Step 4 completed in %.2fs", time.monotonic() - step_start)
+        step_results[3] = "pass"
 
     # --- Step 5: Reviewer (if not yet done) ---
     if last_completed < 5:
         logger.info("--- Step 5: Reviewer ---")
         step_start = time.monotonic()
+        render_step_flow(4, step_results)
         console.print("\n[bold blue]Step 5: Reviewer[/bold blue]")
 
         # --- Pre-Reviewer Guards (P1: precondition + git consistency) ---
