@@ -3,6 +3,8 @@
 import logging
 from typing import Any
 
+import pytest
+
 from src.core.manifest import PluginType
 from src.plugins.actions.log_action import LogAction
 
@@ -16,7 +18,7 @@ class TestLogAction:
         result = action.execute(data)
         assert result == data
 
-    def test_execute_logs_data(self, caplog: logging.LogCaptureFixture) -> None:
+    def test_execute_logs_data(self, caplog: pytest.LogCaptureFixture) -> None:
         action = LogAction()
         data: dict[str, Any] = {"msg": "hello"}
         with caplog.at_level(logging.INFO):
