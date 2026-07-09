@@ -1,0 +1,116 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      # --extra dev pulls ruff, mypy, pytest, etc.
+      - run: uv sync --extra dev
+
+      - name: Ruff check
+        run: uv run ruff check src/ tests/
+
+      # Separate from check — format is not auto-fixed in CI
+      - name: Ruff format check
+        run: uv run ruff format --check src/ tests/
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - run: uv sync --extra dev
+
+      - name: MyPy
+        run: uv run mypy src/
+
+  test:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - run: uv sync --extra dev
+
+      # Tests use SQLite in-memory (conftest.py) — no DB service needed
+      - name: Run tests
+        run: uv run pytest --cov=src --cov-report=json --cov-fail-under=${{ env.COVERAGE_THRESHOLD }}
+
+      # Upload even on failure so we can inspect coverage drops
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.json
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Catches missing deps or broken COPY paths before deploy
+      - name: Build Docker image
+        run: docker build -t agentic-workflow-platform:ci .
+
+  migration-check:
+    name: Migration Check
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: workflow_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@localhost:5432/workflow_db
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - run: uv sync --extra dev
+
+      - name: Run migrations
+        run: uv run alembic upgrade head
+
+      # Fails if models diverged from migration history (forgot to generate)
+      - name: Check no pending migrations
+        run: uv run alembic check

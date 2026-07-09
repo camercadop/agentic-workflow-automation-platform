@@ -76,6 +76,17 @@ The `ValidationEngine` orchestrates gate execution and produces `ValidationRepor
 
 **Key design rule:** Gates cannot be bypassed — all registered gates are executed for every artifact (ADR-009 mandatory rule).
 
+### API Integration
+
+The `ValidationEngine` is wired into the REST API to enforce governance at request time:
+
+| Endpoint | Gates Applied | Behavior on Failure |
+|----------|---------------|---------------------|
+| `POST /plugins/` | Manifest, Security, ExecutionContext | Returns 422 with gate errors |
+| `POST /workflows/` | Workflow (port compatibility, plugin existence, condition labels) | Returns 422 with gate errors |
+
+The `ContractValidationGate` is skipped for API-based plugin registration because the API receives only manifest metadata, not a live plugin class. Contract validation applies at build-time when actual plugin classes are available.
+
 ### Usage
 
 ```python

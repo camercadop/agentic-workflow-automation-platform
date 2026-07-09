@@ -530,9 +530,11 @@ At startup, a `lifespan` handler in `src/api/main.py` calls `build_registry()` t
 |--------|------|-------------|
 | GET | `/plugins/` | List all plugins |
 | GET | `/plugins/{id}` | Get plugin by ID |
-| POST | `/plugins/` | Register a new plugin |
+| POST | `/plugins/` | Register a new plugin (validates via governance gates) |
 | PATCH | `/plugins/{id}` | Update plugin lifecycle state |
 | DELETE | `/plugins/{id}` | Delete a plugin |
+
+**POST /plugins/** runs Manifest, Security, and ExecutionContext validation gates (ADR-009) before persisting. Returns `422` with gate errors if validation fails.
 
 **POST /plugins/** request body:
 ```json
@@ -573,6 +575,8 @@ At startup, a `lifespan` handler in `src/api/main.py` calls `build_registry()` t
   ]
 }
 ```
+
+**POST /workflows/** runs DAG structural validation (acyclicity + edge referential integrity) and the Workflow governance gate (ADR-009) against the live plugin registry (port compatibility, condition edge labels, plugin existence). Returns `422` if either check fails.
 
 Creation validates the DAG (acyclicity + edge referential integrity). Returns `422` if the graph is invalid.
 
@@ -650,4 +654,4 @@ All errors follow a consistent structure:
 |--------|------|---------|
 | 404 | `RESOURCE_NOT_FOUND` | Resource does not exist |
 | 409 | `RESOURCE_ALREADY_EXISTS` | Conflict (e.g. duplicate plugin name) |
-| 422 | `VALIDATION_ERROR` | Invalid request body |
+| 422 | `VALIDATION_ERROR` | Invalid request body or governance gate failure |

@@ -1,6 +1,6 @@
 # agentic-workflow-automation-platform
 
-> **Status:** Phases 1–6 complete (Core Engine, Persistence, API Layer, Execution Policies, Agent Infrastructure, Condition Plugins Library).
+> **Status:** Phases 1–7 complete (Core Engine, Persistence, API Layer, Execution Policies, Agent Infrastructure, Condition Plugins Library, CI/CD Pipeline).
 >
 > The architecture documentation (ADRs and C4 diagrams) remains the authoritative source of truth.
 
@@ -419,6 +419,20 @@ The Reviewer agent receives the full source code of created/modified files in it
 
 See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md#agent-infrastructure) for full details.
 
+## CI/CD Pipeline
+
+GitHub Actions enforces quality gates on every push and PR to `main`. All 5 jobs must pass before merging:
+
+| Job | Gate |
+|-----|------|
+| Lint & Format | `ruff check` + `ruff format --check` |
+| Type Check | `mypy` strict mode |
+| Test & Coverage | `pytest` with 80% minimum coverage |
+| Docker Build | Validates Dockerfile packaging |
+| Migration Check | `alembic upgrade head` + `alembic check` against PostgreSQL |
+
+See [`docs/CI_CD.md`](docs/CI_CD.md) for full details on jobs, configuration, and branch protection setup.
+
 ## Architecture Documentation
 
 - **⭐ Agentic Development Pipeline**: [`docs/AGENTIC_DEVELOPMENT_PIPELINE.md`](docs/AGENTIC_DEVELOPMENT_PIPELINE.md) – how agents drive the full development lifecycle (start here)
@@ -430,6 +444,7 @@ See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md#agent-infrastructure) fo
 - **Domain Model**: [`docs/architecture/domain-model.md`](docs/architecture/domain-model.md)
 - **Vision**: [`docs/architecture/vision.md`](docs/architecture/vision.md)
 - **Code Standards**: [`docs/CODE_STANDARDS.md`](docs/CODE_STANDARDS.md) – linting, formatting, and style rules
+- **CI/CD Pipeline**: [`docs/CI_CD.md`](docs/CI_CD.md) – GitHub Actions jobs, coverage threshold, branch protection
 - **Developer Guide**: [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) – module usage and architecture constraints
 - **Testing Guide**: [`docs/TESTING.md`](docs/TESTING.md) – testing conventions, structure, and examples
 - **Glossary**: [`GLOSSARY.md`](GLOSSARY.md) – key terminology and definitions
