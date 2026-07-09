@@ -1,6 +1,6 @@
 # agentic-workflow-automation-platform
 
-> **Status:** Phases 1–5 complete (Core Engine, Persistence, API Layer, Execution Policies, Agent Infrastructure).
+> **Status:** Phases 1–6 complete (Core Engine, Persistence, API Layer, Execution Policies, Agent Infrastructure, Condition Plugins Library).
 >
 > The architecture documentation (ADRs and C4 diagrams) remains the authoritative source of truth.
 
