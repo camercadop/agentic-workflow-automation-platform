@@ -5,6 +5,7 @@ from src.api.errors.catalogue import (
     ErrorDetail,
     raise_conflict,
     raise_not_found,
+    raise_validation_error,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "ErrorDetail",
     "raise_conflict",
     "raise_not_found",
+    "raise_validation_error",
 ]

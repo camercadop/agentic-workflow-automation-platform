@@ -7,13 +7,32 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from starlette import status
 
-from src.api.errors import raise_not_found
+from src.api.errors import raise_not_found, raise_validation_error
 from src.api.schemas import PluginCreate, PluginResponse, PluginUpdate
+from src.core.contracts import PluginBase
+from src.core.manifest import PluginManifest
 from src.database import get_session
+from src.governance import ValidationEngine
+from src.governance.gates import (
+    ExecutionContextValidationGate,
+    ManifestValidationGate,
+    SecurityValidationGate,
+)
 from src.models.plugin import Plugin
 from src.repositories.plugins import PluginRepository
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
+
+
+class _ManifestProxy(PluginBase):
+    """Lightweight adapter to run governance gates against API input."""
+
+    def __init__(self, m: PluginManifest) -> None:
+        self._manifest = m
+
+    @property
+    def manifest(self) -> PluginManifest:
+        return self._manifest
 
 
 def _get_repo(session: Annotated[Session, Depends(get_session)]) -> PluginRepository:
@@ -40,7 +59,26 @@ def get_plugin(plugin_id: uuid.UUID, repo: RepoDep) -> Plugin:
 
 @router.post("/", response_model=PluginResponse, status_code=status.HTTP_201_CREATED)
 def create_plugin(body: PluginCreate, repo: RepoDep) -> Plugin:
-    """Register a new plugin."""
+    """Register a new plugin.
+
+    Runs governance validation gates (ADR-009) before persisting.
+    """
+    manifest = PluginManifest(
+        name=body.name,
+        version=body.version,
+        plugin_type=body.plugin_type,
+        **body.manifest,
+    )
+    # Only run gates applicable to manifest-only validation (no live class)
+    gates = [
+        ManifestValidationGate(),
+        SecurityValidationGate(),
+        ExecutionContextValidationGate(),
+    ]
+    report = ValidationEngine(gates=gates).validate_plugin(_ManifestProxy(manifest))
+    if not report.passed:
+        raise_validation_error(report.errors)
+
     plugin = Plugin(
         name=body.name,
         version=body.version,

@@ -42,3 +42,14 @@ def raise_conflict(message: str = "Resource already exists") -> NoReturn:
         status_code=status.HTTP_409_CONFLICT,
         detail=ErrorDetail(ErrorCode.RESOURCE_ALREADY_EXISTS, message).to_dict(),
     )
+
+
+def raise_validation_error(errors: list[str]) -> NoReturn:
+    """Raise a 422 HTTPException with validation errors."""
+    raise HTTPException(
+        status_code=422,
+        detail=ErrorDetail(
+            ErrorCode.VALIDATION_ERROR,
+            "; ".join(errors),
+        ).to_dict(),
+    )

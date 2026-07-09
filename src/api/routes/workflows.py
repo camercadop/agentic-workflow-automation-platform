@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from starlette import status
 
-from src.api.errors import raise_not_found
+from src.api.errors import raise_not_found, raise_validation_error
 from src.api.schemas.workflows import (
     WorkflowCreate,
     WorkflowExecuteRequest,
@@ -21,6 +21,7 @@ from src.core.executor import WorkflowExecutor
 from src.core.registry import PluginRegistry
 from src.core.workflow import WorkflowDefinition, WorkflowEdge, WorkflowNode
 from src.database import get_session
+from src.governance import ValidationEngine
 from src.models.execution import ExecutionStatus, WorkflowExecution
 from src.models.workflow import Workflow
 from src.repositories.executions import WorkflowExecutionRepository
@@ -69,19 +70,27 @@ def get_workflow(workflow_id: uuid.UUID, repo: RepoDep) -> Workflow:
 
 
 @router.post("/", response_model=WorkflowResponse, status_code=status.HTTP_201_CREATED)
-def create_workflow(body: WorkflowCreate, repo: RepoDep) -> Workflow:
+def create_workflow(
+    body: WorkflowCreate, repo: RepoDep, registry: RegistryDep
+) -> Workflow:
     """Create a new workflow definition.
 
-    Validates the DAG structure (acyclicity, edge integrity) before persisting.
+    Validates DAG structure (acyclicity, edge integrity) and runs
+    governance gates (ADR-009) against registered plugins.
     """
-    # Validate DAG structure using the core model
-    WorkflowDefinition(
+    definition = WorkflowDefinition(
         name=body.name,
         version=body.version,
         nodes=[WorkflowNode(**n.model_dump()) for n in body.nodes],
         edges=[WorkflowEdge(**e.model_dump()) for e in body.edges],
         metadata=body.metadata,
     )
+
+    # Run workflow governance gate against live registry
+    registered = {name: registry.get(name).plugin for name in registry.plugins}
+    report = ValidationEngine().validate_workflow(definition, registered)
+    if not report.passed:
+        raise_validation_error(report.errors)
 
     workflow = Workflow(
         name=body.name,
