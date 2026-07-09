@@ -22,7 +22,3 @@ flowchart TD
     Session -->|maps| Models[ORM Models]
     Models -->|persists| DB[(PostgreSQL)]
 ```
-
-## Usage
-
-Repositories are injected as FastAPI dependencies and operate on SQLAlchemy sessions provided by `src/database.get_session`.

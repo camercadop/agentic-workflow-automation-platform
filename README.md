@@ -105,11 +105,16 @@ Clear architectural boundaries separate plugin execution from core governance.
 - **Language**: Python 3.12+
 - **Web Framework**: FastAPI + Uvicorn
 - **Data Validation**: Pydantic v2
-- **Database**: PostgreSQL
+- **Database**: PostgreSQL 16
+- **ORM**: SQLModel (SQLAlchemy + Pydantic)
+- **Migrations**: Alembic
 - **Package Manager**: [uv](https://docs.astral.sh/uv/)
 - **Linter/Formatter**: Ruff
 - **Type Checking**: MyPy (strict mode)
 - **Testing**: Pytest + pytest-cov
+- **CLI Framework**: Typer + Rich
+- **LLM Client**: OpenAI SDK (compatible with OpenRouter)
+- **Containerization**: Docker + Docker Compose
 
 ## Project Structure
 ```
@@ -223,14 +228,42 @@ See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md#pipeline-guards) for ful
 
 The orchestrator uses Python's `logging` module for structured operational output (separate from the Rich console UI). Logs include timing per step, agent invocation details, quality gate results, and decision audit trails. Dry-run mode (`--dry-run`) enables DEBUG-level logging for deeper visibility.
 
+## Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql+psycopg2://postgres:postgres@localhost:5432/workflow_db` |
+| `POSTGRES_USER` | PostgreSQL user (Docker Compose) | `postgres` |
+| `POSTGRES_PASSWORD` | PostgreSQL password (Docker Compose) | `postgres` |
+| `POSTGRES_DB` | PostgreSQL database name (Docker Compose) | `workflow_db` |
+| `LLM_API_KEY` | API key for LLM provider | — |
+| `LLM_BASE_URL` | LLM API base URL | `https://openrouter.ai/api/v1` |
+| `LLM_MODEL` | Model identifier | `openrouter/free` |
+| `LLM_MAX_TOKENS` | Max tokens per LLM response | `4096` |
+| `LLM_TEMPERATURE` | LLM sampling temperature | `0.3` |
+
 ## Development Setup
 
 ```bash
 # Install dependencies (including dev tools)
 uv sync --extra dev
 
+# Copy environment file
+cp .env.example .env
+
+# Start PostgreSQL (via Docker)
+docker compose up db -d
+
+# Run database migrations
+uv run alembic upgrade head
+
 # Lint
 uv run ruff check src/ tests/
+
+# Format
+uv run ruff format src/ tests/
 
 # Type check
 uv run mypy src/
@@ -238,16 +271,40 @@ uv run mypy src/
 # Run tests
 uv run pytest
 
-# Run database migrations (requires DATABASE_URL env var)
-uv run alembic upgrade head
+# Run tests with verbose coverage
+uv run pytest --cov=src --cov-report=html
 
 # Start the API server
 uv run uvicorn src.api.main:app --reload
 ```
 
-## API Quickstart
+## API Reference
 
-Once running, the API is available at `http://localhost:8000` (docs at `/docs`).
+Once running, the API is available at `http://localhost:8000`. Interactive docs at `/docs` (Swagger UI) and `/redoc`.
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check |
+| `GET` | `/workflows/` | List all workflows |
+| `POST` | `/workflows/` | Create a workflow (validates DAG) |
+| `GET` | `/workflows/{id}` | Get workflow by ID |
+| `PATCH` | `/workflows/{id}` | Update workflow (re-validates DAG) |
+| `DELETE` | `/workflows/{id}` | Delete workflow |
+| `POST` | `/workflows/{id}/execute` | Execute a workflow |
+| `GET` | `/executions/` | List all executions |
+| `GET` | `/executions/{id}` | Get execution by ID |
+| `POST` | `/executions/` | Create execution record |
+| `PATCH` | `/executions/{id}` | Update execution status |
+| `DELETE` | `/executions/{id}` | Delete execution |
+| `GET` | `/plugins/` | List registered plugins |
+| `POST` | `/plugins/` | Register a plugin |
+| `GET` | `/plugins/{id}` | Get plugin by ID |
+| `PATCH` | `/plugins/{id}` | Update plugin lifecycle state |
+| `DELETE` | `/plugins/{id}` | Delete plugin |
+
+### Quickstart Examples
 
 ```bash
 # Create a workflow
@@ -288,7 +345,25 @@ curl -X POST http://localhost:8000/workflows/ \
       {"source_node": "trigger", "source_port": "payload", "target_node": "action", "target_port": "data"}
     ]
   }'
+
+# Check health
+curl http://localhost:8000/health
 ```
+
+## Execution Policies
+
+Each workflow node can be configured with resilience policies:
+
+| Policy | Options | Default |
+|--------|---------|---------|
+| **Retry** | `max_attempts`, `delay_seconds`, `backoff_factor` | 1 attempt, 0s delay, 2.0x backoff |
+| **Timeout** | `timeout_seconds` | 30s |
+| **Error Strategy** | `fail_fast`, `skip_node`, `continue` | `fail_fast` |
+
+Error strategies determine workflow behavior on node failure:
+- `fail_fast` — Abort the entire workflow immediately
+- `skip_node` — Mark node as skipped, continue downstream
+- `continue` — Record failure, continue execution
 
 ## Docker
 
@@ -298,6 +373,9 @@ docker compose up --build
 
 # Run in detached mode
 docker compose up --build -d
+
+# Start only the database
+docker compose up db -d
 
 # Stop services
 docker compose down
@@ -343,14 +421,44 @@ See [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md#agent-infrastructure) fo
 
 ## Architecture Documentation
 
+- **⭐ Agentic Development Pipeline**: [`docs/AGENTIC_DEVELOPMENT_PIPELINE.md`](docs/AGENTIC_DEVELOPMENT_PIPELINE.md) – how agents drive the full development lifecycle (start here)
 - **ADR Index**: [`/docs/adr/`](docs/adr/) – all Architectural Decision Records
 - **C4 Level 0 – System Context**: [`level-0-system-context.md`](docs/architecture/c4/level-0-system-context.md)
 - **C4 Level 1 – Container Diagram**: [`level-1-container.md`](docs/architecture/c4/level-1-container.md)
-- **⭐ Agentic Development Pipeline**: [`docs/AGENTIC_DEVELOPMENT_PIPELINE.md`](docs/AGENTIC_DEVELOPMENT_PIPELINE.md) – how agents drive the full development lifecycle (start here to understand the system)
-- **Glossary**: [`GLOSSARY.md`](GLOSSARY.md) – key terminology and definitions
+- **C4 Level 2 – Component Diagrams**: Core Engine, Workflow Runtime, Plugin Packages, Governance, Context Manager, Isolation Service, Platform API, Development Agents
+- **Architecture Overview**: [`docs/architecture/architecture-overview.md`](docs/architecture/architecture-overview.md)
+- **Domain Model**: [`docs/architecture/domain-model.md`](docs/architecture/domain-model.md)
+- **Vision**: [`docs/architecture/vision.md`](docs/architecture/vision.md)
+- **Code Standards**: [`docs/CODE_STANDARDS.md`](docs/CODE_STANDARDS.md) – linting, formatting, and style rules
 - **Developer Guide**: [`docs/DEVELOPER_GUIDE.md`](docs/DEVELOPER_GUIDE.md) – module usage and architecture constraints
 - **Testing Guide**: [`docs/TESTING.md`](docs/TESTING.md) – testing conventions, structure, and examples
+- **Glossary**: [`GLOSSARY.md`](GLOSSARY.md) – key terminology and definitions
 - **Contributing**: [`CONTRIBUTING.md`](CONTRIBUTING.md) – coding standards and contribution rules
+
+## ADR Summary
+
+| ADR | Title | Scope |
+|-----|-------|-------|
+| 001 | Plugin-First Architecture | Runtime |
+| 002 | Plugin Registration Model | Runtime |
+| 003 | Plugin Lifecycle Model | Runtime |
+| 004 | Plugin Isolation Model | Runtime |
+| 005 | Plugin Contract Definitions | Runtime |
+| 006 | Execution Context Strategy | Runtime |
+| 007 | Workflow Graph Specification | Runtime |
+| 008 | Agentic Development Model | Development |
+| 009 | Governance and Validation Framework | Runtime |
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `psycopg2` install fails | Install `libpq-dev` (Linux) or `brew install postgresql` (macOS) |
+| Database connection refused | Ensure PostgreSQL is running: `docker compose up db -d` |
+| Alembic migration errors | Verify `DATABASE_URL` is set and database exists |
+| Tests use wrong DB | Tests default to SQLite in-memory via `conftest.py`; no PostgreSQL needed |
+| LLM agent errors | Verify `LLM_API_KEY` and `LLM_BASE_URL` in `.env` |
+| Import errors in tests | Run `uv sync --extra dev` to install all dev dependencies |
 
 ## License
 This project is released under the [Apache License, Version 2.0](LICENSE).
