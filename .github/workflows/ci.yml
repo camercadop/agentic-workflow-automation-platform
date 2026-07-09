@@ -8,7 +8,7 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
-  COVERAGE_THRESHOLD: 70
+  COVERAGE_THRESHOLD: 80
 
 jobs:
   lint:
@@ -21,13 +21,11 @@ jobs:
         with:
           version: "latest"
 
-      # --extra dev pulls ruff, mypy, pytest, etc.
       - run: uv sync --extra dev
 
       - name: Ruff check
         run: uv run ruff check src/ tests/
 
-      # Separate from check — format is not auto-fixed in CI
       - name: Ruff format check
         run: uv run ruff format --check src/ tests/
 
@@ -58,13 +56,10 @@ jobs:
 
       - run: uv sync --extra dev
 
-      # Tests use SQLite in-memory (conftest.py) — no DB service needed
       - name: Run tests
         run: uv run pytest --cov=src --cov-report=json --cov-fail-under=${{ env.COVERAGE_THRESHOLD }}
 
-      # Upload even on failure so we can inspect coverage drops
       - name: Upload coverage artifact
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
