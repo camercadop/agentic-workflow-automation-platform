@@ -1,5 +1,13 @@
 # agentic-workflow-automation-platform
 
+[![CI](https://github.com/camercadop/agentic-workflow-automation-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/camercadop/agentic-workflow-automation-platform/actions/workflows/ci.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100%2B-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![MyPy](https://img.shields.io/badge/mypy-strict-blue)](https://mypy.readthedocs.io/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-green)](LICENSE)
+
 > **Status:** Phases 1–7 complete (Core Engine, Persistence, API Layer, Execution Policies, Agent Infrastructure, Condition Plugins Library, CI/CD Pipeline).
 >
 > The architecture documentation (ADRs and C4 diagrams) remains the authoritative source of truth.
@@ -429,6 +437,7 @@ GitHub Actions enforces quality gates on every push and PR to `main`. All 5 jobs
 | Type Check | `mypy` strict mode |
 | Test & Coverage | `pytest` with 80% minimum coverage |
 | Docker Build | Validates Dockerfile packaging |
+| Dependency Audit | `uv audit` against known vulnerability databases |
 | Migration Check | `alembic upgrade head` + `alembic check` against PostgreSQL |
 
 See [`docs/CI_CD.md`](docs/CI_CD.md) for full details on jobs, configuration, and branch protection setup.
